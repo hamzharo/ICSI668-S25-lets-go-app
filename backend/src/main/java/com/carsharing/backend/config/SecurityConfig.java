@@ -14,7 +14,7 @@ import org.springframework.security.web.authentication.UsernamePasswordAuthentic
 
 @Configuration
 @EnableWebSecurity
-@EnableMethodSecurity
+@EnableMethodSecurity // Keep this to enable @PreAuthorize annotations
 public class SecurityConfig {
 
     @Autowired
@@ -22,14 +22,17 @@ public class SecurityConfig {
 
     @Bean
     public SecurityFilterChain securityFilterChain(HttpSecurity http) throws Exception {
-        http.csrf(csrf -> csrf.disable())
+        http.csrf(csrf -> csrf.disable()) // Disable CSRF for stateless APIs
             .authorizeHttpRequests(authz -> authz
-                .requestMatchers("/", "/api/auth/**",  "/api/auth/signup", "/api/auth/login", "/api/users").permitAll()
-                // 👈 added root path
+                // Allow access to root and authentication endpoints
+                .requestMatchers("/", "/api/auth/**", "/api/health").permitAll() // Added health check here too
+                // Secure all other requests - specific authorization handled by @PreAuthorize
                 .anyRequest().authenticated()
             )
+            // Make session management stateless - essential for JWT
             .sessionManagement(session -> session.sessionCreationPolicy(SessionCreationPolicy.STATELESS));
 
+        // Add the JWT filter before the standard UsernamePasswordAuthenticationFilter
         http.addFilterBefore(jwtFilter, UsernamePasswordAuthenticationFilter.class);
 
         return http.build();

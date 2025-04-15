@@ -1,12 +1,12 @@
 package com.carsharing.backend.dto;
 
-import java.util.List;
+// No need to import List
 
 public class SignupRequest {
-    private String name;
+    private String name; // Make sure frontend sends this
     private String email;
     private String password;
-    private List<String> roles;
+    // roles field removed
 
     // Getters
     public String getName() {
@@ -17,9 +17,6 @@ public class SignupRequest {
     }
     public String getPassword() {
         return password;
-    }
-    public List<String> getRoles() {
-        return roles;
     }
 
     // Setters
@@ -32,7 +29,5 @@ public class SignupRequest {
     public void setPassword(String password) {
         this.password = password;
     }
-    public void setRoles(List<String> roles) {
-        this.roles = roles;
-    }
+    // roles setter removed
 }

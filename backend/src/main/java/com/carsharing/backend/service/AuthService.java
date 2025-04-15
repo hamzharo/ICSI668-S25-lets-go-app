@@ -1,7 +1,7 @@
 package com.carsharing.backend.service;
 
-import java.util.ArrayList;
 import java.util.List;
+import java.util.Optional;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -15,23 +15,18 @@ import com.carsharing.backend.config.JwtUtil;
 import com.carsharing.backend.dto.AuthResponse;
 import com.carsharing.backend.dto.LoginRequest;
 import com.carsharing.backend.dto.SignupRequest;
-import com.carsharing.backend.model.Role;
 import com.carsharing.backend.model.User;
-import com.carsharing.backend.repository.RoleRepository;
 import com.carsharing.backend.repository.UserRepository;
-
- 
 
 @Service
 public class AuthService {
 
-    private static final Logger log = LoggerFactory.getLogger(JwtUtil.class); // Add logger
+    private static final Logger log = LoggerFactory.getLogger(AuthService.class);
 
     @Autowired
     private UserRepository userRepo;
 
-    @Autowired
-    private RoleRepository roleRepo;
+    // RoleRepository removed as dependency for register method
 
     @Autowired
     private PasswordEncoder passwordEncoder;
@@ -40,38 +35,60 @@ public class AuthService {
     private JwtUtil jwtUtil;
 
     public ResponseEntity<?> register(SignupRequest request) {
+        // 1. Check if email already exists
         if (userRepo.existsByEmail(request.getEmail())) {
-            return ResponseEntity.badRequest().body("Email already exists");
+            log.warn("Registration attempt failed: Email {} already exists.", request.getEmail());
+            return ResponseEntity.status(HttpStatus.CONFLICT).body("Email already exists");
         }
 
-        List<String> rolesFromDB = new ArrayList<>();
-        for (String role : request.getRoles()) {
-            Role foundRole = roleRepo.findByName(role).orElseThrow(() -> new RuntimeException("Role not found"));
-            rolesFromDB.add(foundRole.getName());
-        }
-
+        // 2. Create new User object
         User newUser = new User();
-        newUser.setName(request.getName());
+        newUser.setName(request.getName()); // Assumes name is provided
         newUser.setEmail(request.getEmail());
         newUser.setPassword(passwordEncoder.encode(request.getPassword()));
-        newUser.setRoles(rolesFromDB);
-        userRepo.save(newUser);
 
+        // 3. Assign default role: PASSENGER
+        // Assumes "PASSENGER" role was initialized at startup
+        newUser.setRoles(List.of("PASSENGER"));
+
+        // 4. Save the new user
+        userRepo.save(newUser);
+        log.info("User registered successfully with email: {} and default role PASSENGER", newUser.getEmail());
+
+        // 5. Generate JWT token
         String token = jwtUtil.generateToken(newUser.getEmail(), newUser.getRoles());
-        AuthResponse responsePayload = new AuthResponse("User registered", token, newUser.getEmail(), newUser.getRoles());
-        log.info("Register method successful for {}. Returning 200 OK.", newUser.getEmail());
-        return ResponseEntity.ok(responsePayload);
+
+        // 6. Create and return response
+        AuthResponse responsePayload = new AuthResponse(
+            "User registered successfully as PASSENGER.",
+            token,
+            newUser.getEmail(),
+            newUser.getRoles()
+        );
+        // Use 201 Created status for successful resource creation
+        return ResponseEntity.status(HttpStatus.CREATED).body(responsePayload);
     }
 
     public ResponseEntity<?> login(LoginRequest request) {
-        User user = userRepo.findByEmail(request.getEmail())
-                .orElseThrow(() -> new RuntimeException("Invalid email"));
+        Optional<User> userOptional = userRepo.findByEmail(request.getEmail());
 
-        if (!passwordEncoder.matches(request.getPassword(), user.getPassword())) {
+        // Check if user exists AND password matches
+        if (userOptional.isEmpty() || !passwordEncoder.matches(request.getPassword(), userOptional.get().getPassword())) {
+            log.warn("Login attempt failed for email: {}", request.getEmail());
+            // Return generic unauthorized error for security
             return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body("Invalid credentials");
         }
 
+        // User exists and password is correct
+        User user = userOptional.get();
         String token = jwtUtil.generateToken(user.getEmail(), user.getRoles());
-        return ResponseEntity.ok(new AuthResponse("Login successful", token, user.getEmail(), user.getRoles()));
+        log.info("Login successful for email: {}", user.getEmail());
+
+        return ResponseEntity.ok(new AuthResponse(
+            "Login successful",
+            token,
+            user.getEmail(),
+            user.getRoles())
+        );
     }
 }

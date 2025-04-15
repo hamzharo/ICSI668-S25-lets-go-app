@@ -12,21 +12,27 @@ import org.springframework.web.bind.annotation.RestController;
 @RequestMapping("/api/rides")
 public class RideController {
 
+    // Search for rides - Accessible by both Passengers and Drivers
     @GetMapping("/search")
-    @PreAuthorize("hasRole('USER')")
+    @PreAuthorize("hasAnyRole('PASSENGER', 'DRIVER')")
     public ResponseEntity<String> searchRides() {
-        return ResponseEntity.ok("Search results: matching rides.");
+        // TODO: Implement actual search logic using RideRepository and query parameters
+        return ResponseEntity.ok("Search results: matching rides (placeholder).");
     }
 
+    // Request to join a specific ride - Only Passengers can request
     @PostMapping("/request/{rideId}")
-    @PreAuthorize("hasRole('USER')")
+    @PreAuthorize("hasRole('PASSENGER')")
     public ResponseEntity<String> requestRide(@PathVariable String rideId) {
-        return ResponseEntity.ok("Requested to join ride: " + rideId);
+        // TODO: Implement booking request logic (create Booking object)
+        return ResponseEntity.ok("Requested to join ride: " + rideId + " (placeholder).");
     }
 
+    // View ride history - Relevant for both Passengers and Drivers
     @GetMapping("/history")
-    @PreAuthorize("hasAnyRole('USER', 'DRIVER')")
+    @PreAuthorize("hasAnyRole('PASSENGER', 'DRIVER')")
     public ResponseEntity<String> rideHistory() {
-        return ResponseEntity.ok("Your ride history (both as rider or driver).");
+        // TODO: Implement logic to fetch ride history based on authenticated user's ID
+        return ResponseEntity.ok("Your ride history (both as rider or driver) (placeholder).");
     }
 }
