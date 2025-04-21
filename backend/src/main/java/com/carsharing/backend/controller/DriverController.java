@@ -17,10 +17,16 @@ import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
-import com.carsharing.backend.dto.RideCreationDTO; // Import DTO
+import com.carsharing.backend.dto.RideCreationDTO; 
 import com.carsharing.backend.exception.ResourceNotFoundException;
-import com.carsharing.backend.model.Ride;          // Import Model for response type
-import com.carsharing.backend.service.RideService; // Import Service
+import com.carsharing.backend.model.Ride;         
+import com.carsharing.backend.service.RideService; 
+
+import com.carsharing.backend.exception.BookingException; // Import exceptions
+import com.carsharing.backend.model.Booking; // Import Booking
+import com.carsharing.backend.service.BookingService; // Import BookingService
+import org.springframework.security.access.AccessDeniedException; // Import AccessDeniedException
+
 
 import lombok.Data;
 import lombok.Getter;
@@ -37,6 +43,10 @@ public class DriverController {
     @Autowired // Inject the RideService
     private RideService rideService;
 
+    @Autowired // Inject BookingService
+    private BookingService bookingService;
+
+        // --- Ride Management ---
     // Implement GET /my-rides using RideService
     @GetMapping("/my-rides")
     public ResponseEntity<String> getMyRides() {
@@ -48,11 +58,9 @@ public class DriverController {
         return ResponseEntity.ok("List of rides offered by this driver (placeholder).");
     }
 
-    /**
-     * Endpoint for a driver to offer/create a new ride.
-     * @param rideDTO Data transfer object containing ride details.
-     * @return ResponseEntity with the created Ride details or error status.
-     */
+    
+      //Endpoint for a driver to offer/create a new ride.
+
     @PostMapping("/offer-ride") // Use POST for creation
     public ResponseEntity<?> createRide(@RequestBody RideCreationDTO rideDTO) { // Use the DTO
         try {
@@ -102,7 +110,59 @@ public class DriverController {
     }
 
     // Implement POST /bookings/{bookingId}/confirm and /reject using BookingService
-    // Example:
-    // @PostMapping("/bookings/{bookingId}/confirm")
-    // public ResponseEntity<?> confirmBooking(@PathVariable String bookingId) { ... }
+    
+    @PostMapping("/bookings/{bookingId}/confirm")
+    public ResponseEntity<?> confirmBooking(@PathVariable String bookingId) {
+        try {
+            Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
+            String driverEmail = authentication.getName();
+
+            Booking confirmedBooking = bookingService.confirmBooking(bookingId, driverEmail);
+            return ResponseEntity.ok(confirmedBooking); // 200 OK on success
+
+        } catch (ResourceNotFoundException e) {
+             log.warn("Confirm booking failed: {}", e.getMessage());
+            return ResponseEntity.status(HttpStatus.NOT_FOUND).body(e.getMessage());
+        } catch (BookingException e) {
+            log.warn("Confirm booking failed: {}", e.getMessage());
+            return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(e.getMessage());
+        } catch (AccessDeniedException e) { // Catch specific authorization errors
+            log.warn("Confirm booking failed: {}", e.getMessage());
+            return ResponseEntity.status(HttpStatus.FORBIDDEN).body(e.getMessage());
+        } catch (Exception e) {
+            log.error("Error confirming booking {}: {}", bookingId, e.getMessage(), e);
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
+                   .body("An unexpected error occurred while confirming the booking.");
+        }
+    }
+
+    /**
+     * Endpoint for a driver to reject a pending booking request.
+     * @param bookingId The ID of the booking to reject.
+     * @return ResponseEntity with the updated Booking details or error status.
+     */
+    @PostMapping("/bookings/{bookingId}/reject")
+    public ResponseEntity<?> rejectBooking(@PathVariable String bookingId) {
+         try {
+            Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
+            String driverEmail = authentication.getName();
+
+            Booking rejectedBooking = bookingService.rejectBooking(bookingId, driverEmail);
+            return ResponseEntity.ok(rejectedBooking); // 200 OK on success
+
+        } catch (ResourceNotFoundException e) {
+             log.warn("Reject booking failed: {}", e.getMessage());
+            return ResponseEntity.status(HttpStatus.NOT_FOUND).body(e.getMessage());
+        } catch (BookingException e) {
+            log.warn("Reject booking failed: {}", e.getMessage());
+            return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(e.getMessage());
+        } catch (AccessDeniedException e) { // Catch specific authorization errors
+            log.warn("Reject booking failed: {}", e.getMessage());
+            return ResponseEntity.status(HttpStatus.FORBIDDEN).body(e.getMessage());
+        } catch (Exception e) {
+            log.error("Error rejecting booking {}: {}", bookingId, e.getMessage(), e);
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
+                   .body("An unexpected error occurred while rejecting the booking.");
+        }
+    }
 }

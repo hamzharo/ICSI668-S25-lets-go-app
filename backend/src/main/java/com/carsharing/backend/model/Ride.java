@@ -87,4 +87,8 @@ public class Ride {
     // public String getId() { return id; }
     // public void setId(String id) { this.id = id; }
     // ... etc. for all fields
+
+    // public String getDriverId() {
+    //     return driverId;
+    // }
 }
