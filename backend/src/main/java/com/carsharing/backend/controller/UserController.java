@@ -17,6 +17,7 @@ import org.springframework.web.bind.annotation.RestController;
 
 import com.carsharing.backend.model.User;
 import com.carsharing.backend.repository.UserRepository;
+import com.mongodb.lang.NonNull;
 
 @RestController
 @RequestMapping("/api/users")
@@ -31,6 +32,7 @@ public class UserController {
     // public ResponseEntity<User> createUser(@RequestBody User user) { ... }
 
     // Get all users - Only for Admins
+    @NonNull
     @GetMapping
     @PreAuthorize("hasRole('ADMIN')")
     public ResponseEntity<List<User>> getAllUsers() {

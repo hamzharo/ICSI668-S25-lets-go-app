@@ -48,18 +48,22 @@ public class BookingService {
 
     private static final Logger log = LoggerFactory.getLogger(BookingService.class);
 
-    private static final String STATUS_REQUESTED = "REQUESTED";
-    private static final String STATUS_CONFIRMED = "CONFIRMED";
-    private static final String STATUS_REJECTED_BY_DRIVER = "REJECTED_BY_DRIVER";
-    private static final String STATUS_CANCELLED_BY_PASSENGER = "CANCELLED_BY_PASSENGER"; 
-    //private static final String STATUS_CANCELLED_BY_DRIVER = "CANCELLED_BY_DRIVER"; // Likely needed later
-    //private static final String STATUS_COMPLETED = "COMPLETED"; // Likely needed later
+    public static final String STATUS_REQUESTED = "REQUESTED";
+    public static final String STATUS_CONFIRMED = "CONFIRMED";
+    public static final String STATUS_REJECTED_BY_DRIVER = "REJECTED_BY_DRIVER";
+    public static final String STATUS_CANCELLED_BY_PASSENGER = "CANCELLED_BY_PASSENGER"; 
+    public static final String STATUS_CANCELLED_BY_DRIVER = "CANCELLED_BY_DRIVER"; // Likely needed later
+    public static final String STATUS_COMPLETED = "COMPLETED"; // Likely needed later
    
-    // Define states from which a passenger can cancel
-   private static final Set<String> CANCELLABLE_STATES_BY_PASSENGER = Set.of(
+    
+  // Define states from which a passenger can cancel 
+  public static final Set<String> CANCELLABLE_STATES_BY_PASSENGER = Set.of(
     STATUS_REQUESTED, STATUS_CONFIRMED
-   );
-
+);
+// Define states considered 'active' or 'pending' for ride cancellation impact 
+public static final Set<String> ACTIVE_BOOKING_STATES = Set.of(
+    STATUS_REQUESTED, STATUS_CONFIRMED
+);
 
     @Autowired
     private BookingRepository bookingRepository;
@@ -120,8 +124,7 @@ public class BookingService {
         newBooking.setDriverId(ride.getDriverId()); // Store driver ID for convenience
         newBooking.setRequestedSeats(requested);
         newBooking.setStatus("REQUESTED"); // Initial status, Use Enum later
-        // newBooking.setCreatedAt(LocalDateTime.now()); // Let Auditing handle
-        // newBooking.setUpdatedAt(LocalDateTime.now()); // Let Auditing handle
+        newBooking.setCreatedAt(LocalDateTime.now()); // Let Auditing handle
 
 
         Booking savedBooking = bookingRepository.save(newBooking);

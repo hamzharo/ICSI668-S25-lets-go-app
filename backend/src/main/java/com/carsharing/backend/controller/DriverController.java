@@ -20,7 +20,7 @@ import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
-
+import com.carsharing.backend.dto.RideUpdateDTO;
 import com.carsharing.backend.dto.RideCreationDTO;
 import com.carsharing.backend.exception.BookingException;
 import com.carsharing.backend.exception.ResourceNotFoundException;
@@ -28,6 +28,8 @@ import com.carsharing.backend.model.Booking;
 import com.carsharing.backend.model.Ride;
 import com.carsharing.backend.service.BookingService;
 import com.carsharing.backend.service.RideService;
+
+
 
 import lombok.Data;
 import lombok.Getter;
@@ -112,17 +114,56 @@ public class DriverController {
 
     // Implement PUT /update-ride/{id} using RideService
     @PutMapping("/update-ride/{id}")
-    public ResponseEntity<String> updateRide(@PathVariable String id) {
-        // Needs RideUpdateDTO, validation (ensure driver owns the ride), call RideService
-        return ResponseEntity.ok("Ride with ID " + id + " updated (placeholder).");
-    }
+    public ResponseEntity<?> updateRide(@PathVariable String id, @RequestBody RideUpdateDTO rideUpdateDTO) {
+        try {
+           Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
+           String driverEmail = authentication.getName();
 
+           Ride updatedRide = rideService.updateRide(id, rideUpdateDTO, driverEmail);
+           return ResponseEntity.ok(updatedRide); // 200 OK with updated ride
+
+       } catch (ResourceNotFoundException e) {
+            log.warn("Update ride failed: {}", e.getMessage());
+           return ResponseEntity.status(HttpStatus.NOT_FOUND).body(e.getMessage());
+       } catch (BookingException | IllegalArgumentException e) { // Catch status or validation errors
+           log.warn("Update ride failed: {}", e.getMessage());
+           return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(e.getMessage());
+       } catch (AccessDeniedException e) {
+           log.warn("Update ride failed: {}", e.getMessage());
+           return ResponseEntity.status(HttpStatus.FORBIDDEN).body(e.getMessage());
+       } catch (Exception e) {
+           log.error("Error updating ride {}: {}", id, e.getMessage(), e);
+           return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
+                  .body("An unexpected error occurred while updating the ride.");
+       }
+   }
     // Implement DELETE /delete-ride/{id} using RideService
     @DeleteMapping("/delete-ride/{id}")
-    public ResponseEntity<String> deleteRide(@PathVariable String id) {
-        // Needs validation (ensure driver owns the ride), logic to handle existing bookings, call RideService
-        return ResponseEntity.ok("Ride with ID " + id + " deleted (placeholder).");
-    }
+    public ResponseEntity<?> deleteRide(@PathVariable String id) { // Changed method name for clarity
+        try {
+           Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
+           String driverEmail = authentication.getName();
+
+           rideService.cancelRideByDriver(id, driverEmail);
+           // Return 204 No Content on successful deletion/cancellation
+           return ResponseEntity.noContent().build();
+
+       } catch (ResourceNotFoundException e) {
+            log.warn("Cancel ride failed: {}", e.getMessage());
+           return ResponseEntity.status(HttpStatus.NOT_FOUND).body(e.getMessage());
+       } catch (BookingException e) { // Catch status errors
+           log.warn("Cancel ride failed: {}", e.getMessage());
+           return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(e.getMessage());
+       } catch (AccessDeniedException e) {
+           log.warn("Cancel ride failed: {}", e.getMessage());
+           return ResponseEntity.status(HttpStatus.FORBIDDEN).body(e.getMessage());
+       } catch (Exception e) {
+           log.error("Error cancelling ride {}: {}", id, e.getMessage(), e);
+           return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
+                  .body("An unexpected error occurred while cancelling the ride.");
+       }
+   }
+
 
     // Implement GET /ride-requests using BookingService
     @GetMapping("/ride-requests")
