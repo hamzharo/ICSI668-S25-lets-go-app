@@ -14,7 +14,8 @@ public class User {
     private String name;
     private String email;
     private String password;
-    private List<String> roles; // ✅ This field must match
+    private List<String> roles; 
+    private String driverStatus; // e.g., "NONE", "PENDING_APPROVAL", "APPROVED", "REJECTED"
 
     public User() {
     }
@@ -25,6 +26,7 @@ public class User {
         this.email = email;
         this.password = password;
         this.roles = roles;
+        this.driverStatus = "NONE"; 
     }
 
     // === Getters and Setters ===
@@ -68,4 +70,7 @@ public class User {
     public void setRoles(List<String> roles) {
         this.roles = roles;
     }
+
+    public String getDriverStatus() { return driverStatus; }
+    public void setDriverStatus(String driverStatus) { this.driverStatus = driverStatus; }
 }

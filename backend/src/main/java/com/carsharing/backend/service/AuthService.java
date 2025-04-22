@@ -46,7 +46,7 @@ public class AuthService {
         newUser.setName(request.getName()); // Assumes name is provided
         newUser.setEmail(request.getEmail());
         newUser.setPassword(passwordEncoder.encode(request.getPassword()));
-
+        
         // 3. Assign default role: PASSENGER
         // Assumes "PASSENGER" role was initialized at startup
         newUser.setRoles(List.of("PASSENGER"));

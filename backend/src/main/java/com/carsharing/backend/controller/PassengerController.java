@@ -4,6 +4,11 @@ import com.carsharing.backend.exception.BookingException;
 import com.carsharing.backend.exception.ResourceNotFoundException;
 import com.carsharing.backend.model.Booking;
 import com.carsharing.backend.service.BookingService;
+
+import com.carsharing.backend.service.UserService; // Import UserService
+import com.carsharing.backend.model.User; // Import User
+import com.carsharing.backend.exception.ActionNotAllowedException;
+
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -14,7 +19,7 @@ import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.security.core.Authentication;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.web.bind.annotation.*; 
-import java.util.List; // Import List
+import java.util.List; 
 
 
 @RestController
@@ -27,11 +32,60 @@ public class PassengerController {
     @Autowired
     private BookingService bookingService;
 
+    @Autowired 
+    private UserService userService;
+
+
+@PostMapping("/apply-driver") 
+    public ResponseEntity<?> applyForDriverRole() {
+        try {
+            Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
+            String passengerEmail = authentication.getName();
+            log.info("Passenger '{}' requesting to apply for driver role.", passengerEmail);
+
+            User updatedUser = userService.applyForDriverRole(passengerEmail);
+             // IMPORTANT: Return a DTO here to avoid exposing password hash!
+            // For now, returning partial info for simplicity. Replace with DTO.
+            UserProfileDTO profile = new UserProfileDTO(updatedUser.getId(), updatedUser.getName(), updatedUser.getEmail(), updatedUser.getRoles(), updatedUser.getDriverStatus()); // Pass status
+            return ResponseEntity.ok(profile);
+
+        } catch (ResourceNotFoundException e) {
+             log.warn("Apply driver role failed: {}", e.getMessage());
+             return ResponseEntity.status(HttpStatus.NOT_FOUND).body(e.getMessage());
+        } catch (ActionNotAllowedException e) {
+            log.warn("Apply driver role failed: {}", e.getMessage());
+            return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(e.getMessage());
+        } catch (Exception e) {
+            log.error("Error during driver application: {}", e.getMessage(), e);
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
+                   .body("An unexpected error occurred during the driver application process.");
+        }
+    }
+
+       // --- Added UserProfileDTO as inner class for simplicity ---
+     // Ideally, move this to your dto package
+     // Make sure it includes the driverStatus field
+     public static class UserProfileDTO {
+        public String id;
+        public String name;
+        public String email;
+        public List<String> roles;
+        public String driverStatus; // Added field
+
+        public UserProfileDTO(String id, String name, String email, List<String> roles, String driverStatus) {
+            this.id = id;
+            this.name = name;
+            this.email = email;
+            this.roles = roles;
+            this.driverStatus = driverStatus; // Added assignment
+        }
+        // Add getters if needed
+    }
         /**
      * Endpoint for a passenger to retrieve a list of bookings they have made.
      * @return ResponseEntity containing a list of the passenger's bookings or error status.
      */
-    @GetMapping("/my-bookings") // New Endpoint
+    @GetMapping("/my-bookings") // 
     public ResponseEntity<?> getMyBookings() {
         try {
             Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
