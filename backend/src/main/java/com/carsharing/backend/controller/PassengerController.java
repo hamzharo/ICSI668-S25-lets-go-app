@@ -13,7 +13,9 @@ import org.springframework.security.access.AccessDeniedException;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.security.core.Authentication;
 import org.springframework.security.core.context.SecurityContextHolder;
-import org.springframework.web.bind.annotation.*; // Import DeleteMapping etc.
+import org.springframework.web.bind.annotation.*; 
+import java.util.List; // Import List
+
 
 @RestController
 @RequestMapping("/api/passenger") // Base path for passenger-specific actions
@@ -25,7 +27,36 @@ public class PassengerController {
     @Autowired
     private BookingService bookingService;
 
-    // --- Booking Management ---
+        /**
+     * Endpoint for a passenger to retrieve a list of bookings they have made.
+     * @return ResponseEntity containing a list of the passenger's bookings or error status.
+     */
+    @GetMapping("/my-bookings") // New Endpoint
+    public ResponseEntity<?> getMyBookings() {
+        try {
+            Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
+            String passengerEmail = authentication.getName();
+            log.info("Passenger '{}' requesting their bookings.", passengerEmail);
+
+            List<Booking> bookings = bookingService.findBookingsByPassengerEmail(passengerEmail);
+
+            if (bookings.isEmpty()) {
+                 log.info("No bookings found for passenger '{}'.", passengerEmail);
+                return new ResponseEntity<>(HttpStatus.NO_CONTENT); // 204 if no bookings
+            }
+
+            log.info("Returning {} bookings for passenger '{}'.", bookings.size(), passengerEmail);
+            return ResponseEntity.ok(bookings); // 200 OK with list
+
+        } catch (ResourceNotFoundException e) {
+            // Shouldn't happen if token valid, but handle defensively
+             log.warn("Get my bookings failed: {}", e.getMessage());
+             return ResponseEntity.status(HttpStatus.NOT_FOUND).build();
+        } catch (Exception e) {
+            log.error("Error fetching bookings for current passenger: {}", e.getMessage(), e);
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).build();
+        }
+    }
 
     // Add endpoint GET /my-bookings to view own bookings
 

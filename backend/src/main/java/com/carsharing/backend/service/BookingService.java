@@ -52,8 +52,8 @@ public class BookingService {
     private static final String STATUS_CONFIRMED = "CONFIRMED";
     private static final String STATUS_REJECTED_BY_DRIVER = "REJECTED_BY_DRIVER";
     private static final String STATUS_CANCELLED_BY_PASSENGER = "CANCELLED_BY_PASSENGER"; 
-    private static final String STATUS_CANCELLED_BY_DRIVER = "CANCELLED_BY_DRIVER"; // Likely needed later
-    private static final String STATUS_COMPLETED = "COMPLETED"; // Likely needed later
+    //private static final String STATUS_CANCELLED_BY_DRIVER = "CANCELLED_BY_DRIVER"; // Likely needed later
+    //private static final String STATUS_COMPLETED = "COMPLETED"; // Likely needed later
    
     // Define states from which a passenger can cancel
    private static final Set<String> CANCELLABLE_STATES_BY_PASSENGER = Set.of(
@@ -247,10 +247,25 @@ public class BookingService {
         return updatedBooking;
     }
 
+/**
+     * Finds all bookings made by the passenger associated with the given email.
+     * @param passengerEmail The email of the passenger.
+     * @return A list of bookings made by the passenger.
+     * @throws ResourceNotFoundException if the user is not found.
+     */
+    public List<Booking> findBookingsByPassengerEmail(String passengerEmail) {
+        // Find the user first to get their ID
+        User passenger = findUserByEmail(passengerEmail); // Reuse existing helper
+
+        log.info("Fetching bookings for passenger ID: {}", passenger.getId());
+        // Use the existing repository method that finds by passengerId
+        List<Booking> bookings = bookingRepository.findByPassengerId(passenger.getId());
+        log.info("Found {} bookings for passenger ID: {}", bookings.size(), passenger.getId());
+        return bookings;
+    }
+
 
     // --- Helper Methods ---
-    
-
     private User findUserByEmail(String email) {
         return userRepository.findByEmail(email)
                 .orElseThrow(() -> new ResourceNotFoundException("User not found with email: " + email));
