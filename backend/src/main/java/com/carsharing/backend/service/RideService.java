@@ -1,7 +1,7 @@
 package com.carsharing.backend.service;
 
 import java.time.LocalDateTime;
-import java.util.Collections; // Import Collections
+import java.util.Collections; 
 import java.util.List;
 
 import org.slf4j.Logger;
@@ -129,15 +129,14 @@ public class RideService {
          User driver = userRepository.findByEmail(driverEmail)
                 .orElseThrow(() -> new ResourceNotFoundException("User (driver) not found with email: " + driverEmail));
          log.info("Fetching rides for driver ID: {}", driver.getId());
-         return rideRepository.findByDriverId(driver.getId());
+          // Use the existing repository method that finds by driverId
+          List<Ride> rides = rideRepository.findByDriverId(driver.getId());
+          log.info("Found {} rides for driver ID: {}", rides.size(), driver.getId());
+          return rides;
     }
 
 
     // --- Other Ride methods (getById, update, delete) will go here later ---
-    // Example:
-    // public Ride getRideById(String rideId) {
-    //     return rideRepository.findById(rideId)
-    //            .orElseThrow(() -> new ResourceNotFoundException("Ride not found with ID: " + rideId));
-    // }
+ 
 
 }

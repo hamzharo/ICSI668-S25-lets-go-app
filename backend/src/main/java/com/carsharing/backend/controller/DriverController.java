@@ -1,13 +1,16 @@
 package com.carsharing.backend.controller;
 
-import org.slf4j.Logger;                    
-import org.slf4j.LoggerFactory;         
+import java.util.List; // Import List
+
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.access.AccessDeniedException;
 import org.springframework.security.access.prepost.PreAuthorize;
-import org.springframework.security.core.Authentication; 
-import org.springframework.security.core.context.SecurityContextHolder; 
+import org.springframework.security.core.Authentication;
+import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
@@ -17,19 +20,18 @@ import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
-import com.carsharing.backend.dto.RideCreationDTO; 
+
+import com.carsharing.backend.dto.RideCreationDTO;
+import com.carsharing.backend.exception.BookingException;
 import com.carsharing.backend.exception.ResourceNotFoundException;
-import com.carsharing.backend.model.Ride;         
-import com.carsharing.backend.service.RideService; 
-
-import com.carsharing.backend.exception.BookingException; // Import exceptions
-import com.carsharing.backend.model.Booking; // Import Booking
-import com.carsharing.backend.service.BookingService; // Import BookingService
-import org.springframework.security.access.AccessDeniedException; // Import AccessDeniedException
-
+import com.carsharing.backend.model.Booking;
+import com.carsharing.backend.model.Ride;
+import com.carsharing.backend.service.BookingService;
+import com.carsharing.backend.service.RideService;
 
 import lombok.Data;
 import lombok.Getter;
+
 
 @Data
 @Getter
@@ -49,13 +51,33 @@ public class DriverController {
         // --- Ride Management ---
     // Implement GET /my-rides using RideService
     @GetMapping("/my-rides")
-    public ResponseEntity<String> getMyRides() {
-        // Example: Get authenticated user's email and call service
-        // Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
-        // String driverEmail = authentication.getName();
-        // List<Ride> rides = rideService.findRidesByDriverEmail(driverEmail);
-        // return ResponseEntity.ok(rides);
-        return ResponseEntity.ok("List of rides offered by this driver (placeholder).");
+    public ResponseEntity<?> getMyRides() {
+         
+        try {
+            Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
+            String driverEmail = authentication.getName();
+            log.info("Driver '{}' requesting their offered rides.", driverEmail);
+
+            List<Ride> rides = rideService.findRidesByDriverEmail(driverEmail);
+
+            if (rides.isEmpty()) {
+                log.info("No rides found for driver '{}'.", driverEmail);
+                // Return 204 No Content if the list is empty but the request was successful
+                return new ResponseEntity<>(HttpStatus.NO_CONTENT);
+            }
+
+            log.info("Returning {} rides for driver '{}'.", rides.size(), driverEmail);
+            return ResponseEntity.ok(rides); // Return 200 OK with the list
+
+        } catch (ResourceNotFoundException e) {
+            // This shouldn't happen if the token is valid, but handle defensively
+             log.warn("Get my rides failed: {}", e.getMessage());
+            return ResponseEntity.status(HttpStatus.NOT_FOUND).body(e.getMessage());
+        } catch (Exception e) {
+            log.error("Error fetching rides for current driver: {}", e.getMessage(), e);
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
+                   .body("An unexpected error occurred while retrieving your rides.");
+        }
     }
 
     
