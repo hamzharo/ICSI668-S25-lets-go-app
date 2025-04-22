@@ -121,7 +121,7 @@ public class RideController {
     @GetMapping("/history")
     @PreAuthorize("hasAnyRole('PASSENGER', 'DRIVER')")
     public ResponseEntity<String> rideHistory() {
-        // TODO: Implement logic to fetch ride history based on authenticated user's ID
+        // Implement logic to fetch ride history based on authenticated user's ID
         // This will likely involve querying both RideRepository (for rides driven)
         // and BookingRepository (for rides taken as passenger) using RideService/BookingService.
         Authentication authentication = SecurityContextHolder.getContext().getAuthentication();

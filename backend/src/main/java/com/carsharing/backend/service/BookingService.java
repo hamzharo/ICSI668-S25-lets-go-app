@@ -26,6 +26,9 @@ import org.springframework.security.access.AccessDeniedException;
 
 
 import lombok.AllArgsConstructor;
+import java.util.Arrays; // Import Arrays
+import java.util.Set; // Import Set
+import java.util.stream.Collectors; // Import Collectors
 import lombok.Data;
 import lombok.EqualsAndHashCode;
 import lombok.Getter;
@@ -48,6 +51,15 @@ public class BookingService {
     private static final String STATUS_REQUESTED = "REQUESTED";
     private static final String STATUS_CONFIRMED = "CONFIRMED";
     private static final String STATUS_REJECTED_BY_DRIVER = "REJECTED_BY_DRIVER";
+    private static final String STATUS_CANCELLED_BY_PASSENGER = "CANCELLED_BY_PASSENGER"; 
+    private static final String STATUS_CANCELLED_BY_DRIVER = "CANCELLED_BY_DRIVER"; // Likely needed later
+    private static final String STATUS_COMPLETED = "COMPLETED"; // Likely needed later
+   
+    // Define states from which a passenger can cancel
+   private static final Set<String> CANCELLABLE_STATES_BY_PASSENGER = Set.of(
+    STATUS_REQUESTED, STATUS_CONFIRMED
+   );
+
 
     @Autowired
     private BookingRepository bookingRepository;
@@ -99,7 +111,7 @@ public class BookingService {
         // 4. Update Ride: Decrement available seats
         ride.setAvailableSeats(ride.getAvailableSeats() - requested);
         // ride.setUpdatedAt(LocalDateTime.now()); // Let Auditing handle
-        Ride updatedRide = rideRepository.save(ride); // Save the updated ride first
+        rideRepository.save(ride); // Save the updated ride first
 
         // 5. Create Booking
         Booking newBooking = new Booking();
@@ -179,7 +191,65 @@ public class BookingService {
         return updatedBooking;
     }
 
+  //  PASSENGER CANCELLATION ---
+    @Transactional
+    public Booking cancelBookingByPassenger(String bookingId, String passengerEmail) {
+        log.info("Passenger '{}' attempting to cancel booking ID: {}", passengerEmail, bookingId);
+
+        // 1. Find Passenger User
+        User passenger = findUserByEmail(passengerEmail);
+
+        // 2. Find Booking
+        Booking booking = findBookingById(bookingId);
+
+        // 3. Validation
+        // Check ownership
+        if (!Objects.equals(booking.getPassengerId(), passenger.getId())) {
+            log.warn("Authorization failed: Passenger '{}' (ID: {}) attempted to cancel booking ID: {} owned by passenger ID: {}",
+                     passenger.getEmail(), passenger.getId(), booking.getId(), booking.getPassengerId());
+            throw new AccessDeniedException("You are not authorized to cancel this booking.");
+        }
+
+        // Check if booking is in a cancellable state
+        if (!CANCELLABLE_STATES_BY_PASSENGER.contains(booking.getStatus())) {
+             log.warn("Action 'cancel' failed for booking ID: {}. Status '{}' is not cancellable by passenger. Allowed states: {}",
+                     booking.getId(), booking.getStatus(), CANCELLABLE_STATES_BY_PASSENGER);
+            throw new BookingException(String.format(
+                    "Cannot cancel booking. Current status is '%s'. Cancellable states are: %s.",
+                     booking.getStatus(), CANCELLABLE_STATES_BY_PASSENGER
+            ));
+        }
+
+        // Optional: Add time-based validation here (e.g., cannot cancel within X hours of departure)
+        // Ride rideForTimeCheck = rideRepository.findById(booking.getRideId()).orElse(null);
+        // if (rideForTimeCheck != null && LocalDateTime.now().isAfter(rideForTimeCheck.getDepartureTime().minusHours(2))) {
+        //     throw new BookingException("Cannot cancel booking less than 2 hours before departure.");
+        // }
+
+        // 4. Determine if seats need to be incremented
+        boolean wasConfirmed = STATUS_CONFIRMED.equalsIgnoreCase(booking.getStatus());
+
+        // 5. Update Booking Status
+        booking.setStatus(STATUS_CANCELLED_BY_PASSENGER);
+        booking.setCancellationTime(LocalDateTime.now());
+        Booking updatedBooking = bookingRepository.save(booking);
+        log.info("Booking ID: {} cancelled successfully by passenger '{}'", bookingId, passengerEmail);
+
+        // 6. Increment seats back ONLY if the booking was previously confirmed
+        if (wasConfirmed) {
+            incrementAvailableSeats(booking.getRideId(), booking.getRequestedSeats());
+        } else {
+            log.info("Seats not incremented for ride ID: {} as cancelled booking was not in CONFIRMED state.", booking.getRideId());
+        }
+
+        // Send notification to Driver about cancellation
+
+        return updatedBooking;
+    }
+
+
     // --- Helper Methods ---
+    
 
     private User findUserByEmail(String email) {
         return userRepository.findByEmail(email)
