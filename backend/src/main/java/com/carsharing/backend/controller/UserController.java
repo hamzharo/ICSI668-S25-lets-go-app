@@ -3,6 +3,7 @@ package com.carsharing.backend.controller;
 import java.util.List;
 import java.util.Optional;
 
+import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
@@ -12,19 +13,31 @@ import org.springframework.security.core.context.SecurityContextHolder; // Impor
 import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
+import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
-
+import org.springframework.web.multipart.MultipartFile; // Import MultipartFile
+import org.springframework.web.bind.annotation.RequestParam; // Import RequestParam
+import com.carsharing.backend.service.UserService; // Import UserService
+import com.carsharing.backend.exception.FileStorageException; // Import FileStorageException
+import com.carsharing.backend.exception.ResourceNotFoundException;
 import com.carsharing.backend.model.User;
 import com.carsharing.backend.repository.UserRepository;
 import com.mongodb.lang.NonNull;
+
+import org.slf4j.Logger;
 
 @RestController
 @RequestMapping("/api/users")
 public class UserController {
 
+        private static final Logger log = LoggerFactory.getLogger(UserController.class); // Added logger
+
     @Autowired
     private UserRepository userRepository;
+
+    @Autowired // Inject UserService
+    private UserService userService;
 
     // POST /api/users - THIS SHOULD GENERALLY NOT EXIST
     // User creation should happen via /api/auth/signup
@@ -116,6 +129,51 @@ public class UserController {
         }
     }
 
+ // --- NEW ENDPOINT for Document Upload ---
+    /**
+     * Endpoint for the authenticated user to upload a document.
+     * @param file The uploaded file (multipart).
+     * @param documentType String indicating the type of document (e.g., "LICENSE").
+     * @return ResponseEntity with updated user profile (DTO recommended) or error status.
+     */
+    @PostMapping("/me/documents") // Upload related to the authenticated user
+    @PreAuthorize("isAuthenticated()") // Any logged-in user can upload to their own profile
+    public ResponseEntity<?> uploadDocument(
+            @RequestParam("file") MultipartFile file,
+            @RequestParam("documentType") String documentType) {
+
+        try {
+            Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
+            String userEmail = authentication.getName();
+
+            log.info("Received document upload request for user '{}', type '{}'", userEmail, documentType);
+
+            User updatedUser = userService.uploadDocument(userEmail, file, documentType);
+
+            // Return updated profile DTO (important to avoid sending password hash)
+             PassengerController.UserProfileDTO profile = new PassengerController.UserProfileDTO(
+                 updatedUser.getId(), updatedUser.getName(), updatedUser.getEmail(), updatedUser.getRoles(), updatedUser.getDriverStatus()
+             );
+            // Include the documents list in the response DTO if needed by frontend
+            // profile.setDocuments(updatedUser.getDocuments()); // Requires adding to DTO
+
+            return ResponseEntity.ok(profile);
+
+        } catch (ResourceNotFoundException e) {
+             log.warn("Document upload failed: {}", e.getMessage());
+            return ResponseEntity.status(HttpStatus.NOT_FOUND).body(e.getMessage());
+        } catch (FileStorageException | IllegalArgumentException e) { // Catch file storage or validation issues
+            log.warn("Document upload failed: {}", e.getMessage());
+            return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(e.getMessage());
+        } catch (Exception e) {
+             log.error("Error uploading document for user: {}", e.getMessage(), e);
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
+                   .body("An unexpected error occurred during document upload.");
+        }
+    }
+
+    
+
     // --- Placeholder DTO for /me endpoint ---
     // Create this as a separate file in your dto package or as an inner class
     public static class UserProfileDTO {
@@ -123,12 +181,15 @@ public class UserController {
         public String name;
         public String email;
         public List<String> roles;
+        public String driverStatus; 
+
 
         public UserProfileDTO(String id, String name, String email, List<String> roles) {
             this.id = id;
             this.name = name;
             this.email = email;
             this.roles = roles;
+            this.driverStatus = driverStatus;
         }
         // Add getters if needed, or make fields public for simplicity if inner class
     }

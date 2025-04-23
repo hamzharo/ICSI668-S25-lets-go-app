@@ -26,6 +26,7 @@ public class AdminController {
     @Autowired
     private UserService userService;
 
+    
     /**
      * Endpoint to list users pending driver approval.
      * @return List of User profiles (DTOs recommended).

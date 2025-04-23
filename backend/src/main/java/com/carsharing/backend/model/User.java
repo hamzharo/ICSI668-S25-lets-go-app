@@ -1,9 +1,12 @@
 package com.carsharing.backend.model;
 
 import java.util.List;
+import java.util.ArrayList; // Import ArrayList
 
 import org.springframework.data.annotation.Id;
 import org.springframework.data.mongodb.core.mapping.Document;
+import org.springframework.data.mongodb.core.mapping.Field; // Import Field
+
 
 @Document(collection = "users")
 public class User {
@@ -17,8 +20,15 @@ public class User {
     private List<String> roles; 
     private String driverStatus; // e.g., "NONE", "PENDING_APPROVAL", "APPROVED", "REJECTED"
 
+    @Field("documents") // Optional, good practice
+    private List<DocumentInfo> documents = new ArrayList<>(); // Initialize to avoid nulls
+
+   
     public User() {
+        this.driverStatus = "NONE";
+        this.documents = new ArrayList<>(); 
     }
+
 
     public User(String id, String name, String email, String password, List<String> roles) {
         this.id = id;
@@ -27,6 +37,7 @@ public class User {
         this.password = password;
         this.roles = roles;
         this.driverStatus = "NONE"; 
+        this.documents = new ArrayList<>();
     }
 
     // === Getters and Setters ===
@@ -73,4 +84,9 @@ public class User {
 
     public String getDriverStatus() { return driverStatus; }
     public void setDriverStatus(String driverStatus) { this.driverStatus = driverStatus; }
+
+    // Getter and Setter for the new field
+    public List<DocumentInfo> getDocuments() { return documents; }
+    public void setDocuments(List<DocumentInfo> documents) { this.documents = documents; }
 }
+

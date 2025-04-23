@@ -1,10 +1,18 @@
 package com.carsharing.backend.service;
 
-import com.carsharing.backend.exception.ActionNotAllowedException; 
+import com.carsharing.backend.exception.ActionNotAllowedException;
 import com.carsharing.backend.exception.ResourceNotFoundException;
+
+import com.carsharing.backend.exception.FileStorageException;
 import com.carsharing.backend.model.User;
 import com.carsharing.backend.repository.UserRepository;
-import org.springframework.security.access.AccessDeniedException; // Keep this
+
+import org.springframework.util.StringUtils;
+
+import com.carsharing.backend.model.DocumentInfo; // Import DocumentInfo
+import org.springframework.web.multipart.MultipartFile; // Import MultipartFile
+import java.time.LocalDateTime; // Import LocalDateTime
+// import org.springframework.security.access.AccessDeniedException; // Keep this
 
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
@@ -38,6 +46,9 @@ public class UserService { // Or DriverApplicationService
     @Autowired
     private UserRepository userRepository;
 
+    @Autowired // Inject FileStorageService
+    private FileStorageService fileStorageService;
+    
     // --- Driver Application Logic ---
 
     @Transactional
@@ -144,6 +155,49 @@ public class UserService { // Or DriverApplicationService
         log.info("Driver application rejected for user ID: {}", userIdToReject);
          // Send notification to User later
         return rejectedUser; // Return updated user
+    }
+
+
+    @Transactional
+    public User uploadDocument(String userEmail, MultipartFile file, String documentType) {
+        log.info("User '{}' uploading document of type '{}', filename '{}'", userEmail, documentType, file.getOriginalFilename());
+
+        // 1. Find User
+        User user = findUserByEmail(userEmail);
+
+        // 2. Store File using FileStorageService
+    String originalFilenameNullable = file.getOriginalFilename();
+    if (originalFilenameNullable == null) {
+        throw new FileStorageException("Cannot upload file with null filename."); // Or IllegalArgumentException
+    }
+    String storedFilename = fileStorageService.storeFile(file);
+    String originalFilename = StringUtils.cleanPath(originalFilenameNullable); // Use cleaned variable
+
+        // 3. Create Metadata
+        DocumentInfo docInfo = new DocumentInfo();
+        docInfo.setDocumentType(documentType); // e.g., "LICENSE"
+        docInfo.setOriginalFilename(originalFilename); // Use cleaned name
+        docInfo.setStoredFilename(storedFilename);
+
+        // Store relative path or just filename if base dir is known
+        // For simplicity now, storing filename. Viewing endpoint will need base dir.
+        docInfo.setFilePath(storedFilename);
+        docInfo.setUploadTimestamp(LocalDateTime.now());
+        docInfo.setVerificationStatus("PENDING_REVIEW"); // Initial status
+
+        // 4. Add metadata to user's document list
+        // Ensure list exists (should be handled by constructor/getter)
+        if (user.getDocuments() == null) {
+            user.setDocuments(new ArrayList<>());
+        }
+        // Optional: Remove existing doc of the same type before adding new one?
+        // user.getDocuments().removeIf(doc -> documentType.equalsIgnoreCase(doc.getDocumentType()));
+        user.getDocuments().add(docInfo);
+
+        // 5. Save updated user
+        User updatedUser = userRepository.save(user);
+        log.info("Document metadata added for user '{}'. Stored filename: {}", userEmail, storedFilename);
+        return updatedUser; // Return updated user (or just success message/DTO)
     }
 
 

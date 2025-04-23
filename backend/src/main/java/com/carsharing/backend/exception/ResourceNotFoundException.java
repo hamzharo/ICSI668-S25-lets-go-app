@@ -1,4 +1,4 @@
-package com.carsharing.backend.exception;
+package com.carsharing.backend.exception; // Correct package
 
 import org.springframework.http.HttpStatus;
 import org.springframework.web.bind.annotation.ResponseStatus;
