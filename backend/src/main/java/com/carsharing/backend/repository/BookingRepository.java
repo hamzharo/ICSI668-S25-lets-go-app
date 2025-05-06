@@ -6,6 +6,9 @@ import org.springframework.data.mongodb.repository.MongoRepository;
 import org.springframework.stereotype.Repository;
 
 import com.carsharing.backend.model.Booking;
+import com.carsharing.backend.model.BookingStatus;
+
+import java.util.Collection;
 
 @Repository
 public interface BookingRepository extends MongoRepository<Booking, String> {
@@ -25,5 +28,7 @@ public interface BookingRepository extends MongoRepository<Booking, String> {
     // Find pending bookings for a specific driver
     List<Booking> findByDriverIdAndStatus(String driverId, String status);
 
-    // Add more queries as needed
+    List<Booking> findByRideIdAndStatusIn(String rideId, Collection<BookingStatus> statuses);
+
+    boolean existsByRideIdAndPassengerIdAndStatus(String rideId, String passengerId, BookingStatus status);
 }

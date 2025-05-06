@@ -8,7 +8,7 @@ import org.springframework.data.annotation.Id;
 import org.springframework.data.annotation.LastModifiedDate; // For Auditing (Optional setup needed)
 import org.springframework.data.mongodb.core.mapping.Document;
 import org.springframework.data.mongodb.core.mapping.Field; // Good practice for clarity
-
+import com.carsharing.backend.model.RideStatus; // <-- Add this import
 import java.time.LocalDateTime;
 import java.util.List;
 
@@ -71,7 +71,7 @@ public class Ride {
     // --- Status & Timestamps ---
 
     @Field("status") // e.g., "SCHEDULED", "ACTIVE", "COMPLETED", "CANCELLED_BY_DRIVER" (Could be Enum later)
-    private String status;
+    private RideStatus status;
 
     @CreatedDate // Automatically set on creation (Requires @EnableMongoAuditing)
     @Field("created_at")
@@ -80,6 +80,10 @@ public class Ride {
     @LastModifiedDate // Automatically set on update (Requires @EnableMongoAuditing)
     @Field("updated_at")
     private LocalDateTime updatedAt;
+    // --- Status & Timestamps ---
+
+
+// ... rest of the fields (createdAt, updatedAt)
 
     // If not using Lombok, add constructors, getters, and setters manually below:
     // public Ride() {}

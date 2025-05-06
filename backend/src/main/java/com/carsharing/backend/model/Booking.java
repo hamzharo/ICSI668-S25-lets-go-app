@@ -8,6 +8,7 @@ import org.springframework.data.annotation.Id;
 import org.springframework.data.annotation.LastModifiedDate;
 import org.springframework.data.mongodb.core.mapping.Document;
 import org.springframework.data.mongodb.core.mapping.Field;
+import com.carsharing.backend.model.BookingStatus;
 
 import java.time.LocalDateTime;
 
@@ -43,8 +44,7 @@ public class Booking {
      * (Could be an Enum later)
      */
     @Field("status")
-    private String status;
-
+    private BookingStatus status;
     @Field("payment_id") // Links to a Payment document ID (can be null initially)
     private String paymentId;
 

@@ -3,6 +3,8 @@ package com.carsharing.backend.config;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
+import org.springframework.http.HttpMethod; // Ensure this is imported
+import org.springframework.security.config.Customizer; // Import for withDefaults
 import org.springframework.security.config.annotation.method.configuration.EnableMethodSecurity;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
 import org.springframework.security.config.annotation.web.configuration.EnableWebSecurity;
@@ -11,6 +13,12 @@ import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.security.web.SecurityFilterChain;
 import org.springframework.security.web.authentication.UsernamePasswordAuthenticationFilter;
+import org.springframework.web.cors.CorsConfiguration;
+import org.springframework.web.cors.CorsConfigurationSource;
+import org.springframework.web.cors.UrlBasedCorsConfigurationSource;
+
+import java.util.Arrays;
+import java.util.List; // Import List
 
 import org.springframework.web.cors.CorsConfiguration;
 import org.springframework.web.cors.CorsConfigurationSource;
@@ -21,7 +29,7 @@ import java.util.Arrays; // Import Arrays
 
 @Configuration
 @EnableWebSecurity
-@EnableMethodSecurity // Keep this to enable @PreAuthorize annotations
+@EnableMethodSecurity // Keep this
 public class SecurityConfig {
 
     @Autowired
@@ -29,6 +37,7 @@ public class SecurityConfig {
 
     @Bean
     public SecurityFilterChain securityFilterChain(HttpSecurity http) throws Exception {
+<<<<<<< HEAD
 
         http
         // Apply CORS configuration FIRST
@@ -41,6 +50,27 @@ public class SecurityConfig {
             .anyRequest().authenticated()
         )
         .sessionManagement(session -> session.sessionCreationPolicy(SessionCreationPolicy.STATELESS));
+=======
+        http
+            // 1. Enable CORS using the CorsConfigurationSource bean defined below
+            .cors(Customizer.withDefaults())
+            // 2. Disable CSRF
+            .csrf(csrf -> csrf.disable())
+            // 3. Configure Authorization Rules
+            .authorizeHttpRequests(authz -> authz
+                // Allow OPTIONS requests globally (important for preflight)
+                .requestMatchers(HttpMethod.OPTIONS, "/**").permitAll()
+                // Allow unauthenticated access to auth endpoints, root, and health
+                .requestMatchers("/", "/api/auth/**", "/api/health").permitAll()
+                 // Secure all other requests
+                .anyRequest().authenticated()
+            )
+            // 4. Set session management to stateless
+            .sessionManagement(session -> session.sessionCreationPolicy(SessionCreationPolicy.STATELESS));
+
+        // 5. Add your JWT filter
+        http.addFilterBefore(jwtFilter, UsernamePasswordAuthenticationFilter.class);
+>>>>>>> 916f811 (Completed user document upload and admin verification system with file storage, metadata handling, and user status update logic.)
 
     http.addFilterBefore(jwtFilter, UsernamePasswordAuthenticationFilter.class);
 
@@ -63,9 +93,30 @@ public class SecurityConfig {
     }
 
     @Bean
+    CorsConfigurationSource corsConfigurationSource() {
+        CorsConfiguration configuration = new CorsConfiguration();
+        // IMPORTANT: Set the allowed origin explicitly
+        configuration.setAllowedOrigins(List.of("http://localhost:3000"));
+        // Allow common methods including OPTIONS
+        configuration.setAllowedMethods(Arrays.asList("GET", "POST", "PUT", "DELETE", "OPTIONS"));
+        // Allow all headers (you might want to restrict this in production)
+        configuration.setAllowedHeaders(List.of("*"));
+        // IMPORTANT: Allow credentials (cookies, authorization headers)
+        configuration.setAllowCredentials(true);
+        // How long the result of a preflight request can be cached
+        configuration.setMaxAge(3600L); // 1 hour
+
+        UrlBasedCorsConfigurationSource source = new UrlBasedCorsConfigurationSource();
+        // Apply this configuration to all paths
+        source.registerCorsConfiguration("/**", configuration);
+        return source;
+    }
+
+    @Bean
     public PasswordEncoder passwordEncoder() {
         return new BCryptPasswordEncoder();
     }
+<<<<<<< HEAD
     // --- Add this CORS Configuration Bean ---
     @Bean
     CorsConfigurationSource corsConfigurationSource() {
@@ -85,3 +136,7 @@ public class SecurityConfig {
     }
     // --- End of CORS Configuration Bean ---
 }
+=======
+}
+
+>>>>>>> 916f811 (Completed user document upload and admin verification system with file storage, metadata handling, and user status update logic.)

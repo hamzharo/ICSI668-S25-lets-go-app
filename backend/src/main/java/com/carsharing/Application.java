@@ -45,23 +45,23 @@ public class Application {
                 user.setEmail(testUserEmail);
 
                 // --- Encode the Password ---
-                user.setPassword(passwordEncoder.encode("123456")); // Encode password!
+                user.setPassword(passwordEncoder.encode("12345678")); // Encode password!
 
                 // --- Assign Roles ---
                 // Give the test user both roles for flexibility during testing
                 user.setRoles(List.of("DRIVER", "PASSENGER"));
 
                 userRepository.save(user);
-                System.out.println("✅ Test user '" + testUserEmail + "' inserted into MongoDB with roles: " + user.getRoles());
+                System.out.println("Test user '" + testUserEmail + "' inserted into MongoDB with roles: " + user.getRoles());
             } else {
-                System.out.println("ℹ️ Test user '" + testUserEmail + "' already exists.");
+                System.out.println("ℹTest user '" + testUserEmail + "' already exists.");
                 // Optional: You might want to ensure the existing test user has the desired roles
                 // during development for consistency after code changes.
                 userRepository.findByEmail(testUserEmail).ifPresent(u -> {
                     if (!u.getRoles().containsAll(List.of("DRIVER", "PASSENGER"))) {
                          u.setRoles(List.of("DRIVER", "PASSENGER"));
                          userRepository.save(u);
-                         System.out.println("ℹ️ Updated roles for test user '" + testUserEmail + "' to DRIVER, PASSENGER.");
+                         System.out.println("ℹ Updated roles for test user '" + testUserEmail + "' to DRIVER, PASSENGER.");
                     }
                 });
             }

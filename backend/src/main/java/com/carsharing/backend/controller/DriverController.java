@@ -9,9 +9,15 @@ import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.AccessDeniedException;
 import org.springframework.security.access.prepost.PreAuthorize;
+<<<<<<< HEAD
 import org.springframework.security.core.Authentication;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.web.bind.annotation.DeleteMapping;
+=======
+import org.springframework.security.core.Authentication; 
+import org.springframework.security.core.context.SecurityContextHolder; 
+// import org.springframework.web.bind.annotation.DeleteMapping;
+>>>>>>> 916f811 (Completed user document upload and admin verification system with file storage, metadata handling, and user status update logic.)
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
@@ -19,7 +25,12 @@ import org.springframework.web.bind.annotation.PutMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
+import com.carsharing.backend.dto.RideUpdateDTO;
+import com.carsharing.backend.exception.IllegalRideStateException; 
+import com.carsharing.backend.exception.UnauthorizedOperationException;
+import jakarta.validation.Valid;
 
+<<<<<<< HEAD
 import com.carsharing.backend.dto.RideUpdateDTO;
 import com.carsharing.backend.dto.RideCreationDTO;
 import com.carsharing.backend.exception.BookingException;
@@ -29,6 +40,17 @@ import com.carsharing.backend.model.Ride;
 import com.carsharing.backend.service.BookingService;
 import com.carsharing.backend.service.RideService;
 
+=======
+import com.carsharing.backend.dto.RideCreationDTO;
+import com.carsharing.backend.dto.RideDTO;
+import com.carsharing.backend.exception.ResourceNotFoundException;
+import com.carsharing.backend.service.RideService; 
+
+import com.carsharing.backend.exception.BookingException; // Import exceptions
+import com.carsharing.backend.model.Booking; // Import Booking
+import com.carsharing.backend.service.BookingService; // Import BookingService
+import org.springframework.security.access.AccessDeniedException; // Import AccessDeniedException
+>>>>>>> 916f811 (Completed user document upload and admin verification system with file storage, metadata handling, and user status update logic.)
 
 
 import lombok.Data;
@@ -94,7 +116,7 @@ public class DriverController {
             log.info("Driver '{}' attempting to create a new ride.", driverEmail);
 
             // Call the service to create the ride
-            Ride createdRide = rideService.createRide(rideDTO, driverEmail);
+            RideDTO createdRide = rideService.createRide(rideDTO, driverEmail);
 
             log.info("Ride created successfully with ID: {}", createdRide.getId());
             // Return the created ride details and a 201 Created status
@@ -113,6 +135,7 @@ public class DriverController {
     }
 
     // Implement PUT /update-ride/{id} using RideService
+<<<<<<< HEAD
     @PutMapping("/update-ride/{id}")
     public ResponseEntity<?> updateRide(@PathVariable String id, @RequestBody RideUpdateDTO rideUpdateDTO) {
         try {
@@ -164,14 +187,55 @@ public class DriverController {
        }
    }
 
+=======
+     
+        @PutMapping("/rides/{rideId}") // Path changed for consistency
+        public ResponseEntity<?> updateRide(
+                @PathVariable String rideId,
+                @RequestBody 
+                @Valid RideUpdateDTO rideUpdateDTO) {
+            try {
+                // Authentication is implicitly handled by @PreAuthorize.
+                // If driverEmail is needed by the service for logging or other reasons (though not strictly for update logic here):
+                // String driverEmail = SecurityContextHolder.getContext().getAuthentication().getName();
+                // log.info("Driver '{}' attempting to update ride '{}'", driverEmail, rideId);
+    
+                RideDTO updatedRide = rideService.updateRide(rideId, rideUpdateDTO);
+    
+                log.info("Ride '{}' updated successfully.", rideId);
+                return ResponseEntity.ok(updatedRide);
+    
+            } catch (ResourceNotFoundException e) {
+                log.warn("Update ride failed for ride '{}': {}", rideId, e.getMessage());
+                return ResponseEntity.status(HttpStatus.NOT_FOUND).body(e.getMessage());
+            } catch (IllegalRideStateException e) {
+                log.warn("Update ride failed for ride '{}' due to illegal state: {}", rideId, e.getMessage());
+                return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(e.getMessage());
+            } catch (UnauthorizedOperationException e) {
+                log.warn("Update ride failed for ride '{}' due to unauthorized access: {}", rideId, e.getMessage());
+                return ResponseEntity.status(HttpStatus.FORBIDDEN).body(e.getMessage()); // Or HttpStatus.BAD_REQUEST
+            } catch (IllegalArgumentException e) { // For validation errors from service or DTO if not handled by @Valid as expected
+                log.warn("Update ride failed due to invalid data for ride '{}': {}", rideId, e.getMessage());
+                return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(e.getMessage());
+            }
+            // Spring Boot's default handler for @Valid errors (MethodArgumentNotValidException)
+            // usually returns a 400 with detailed error messages. If you need custom handling, add a catch block for it.
+            catch (Exception e) {
+                log.error("Error updating ride '{}': {}", rideId, e.getMessage(), e);
+                return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
+                       .body("An unexpected error occurred while updating the ride.");
+            }
+        }
 
-    // Implement GET /ride-requests using BookingService
-    @GetMapping("/ride-requests")
-    public ResponseEntity<String> viewRequests() {
-        // Needs to call BookingService to find bookings with status 'REQUESTED' for this driver's rides.
-        return ResponseEntity.ok("List of ride requests to accept/deny (placeholder).");
-    }
+>>>>>>> 916f811 (Completed user document upload and admin verification system with file storage, metadata handling, and user status update logic.)
 
+    @PostMapping("/bookings/{bookingId}/reject")
+    public ResponseEntity<?> rejectBooking(@PathVariable String bookingId) {
+         try {
+            Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
+            String driverEmail = authentication.getName();
+
+<<<<<<< HEAD
     // Implement POST /bookings/{bookingId}/confirm and /reject using BookingService
     
     @PostMapping("/bookings/{bookingId}/confirm")
@@ -210,6 +274,8 @@ public class DriverController {
             Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
             String driverEmail = authentication.getName();
 
+=======
+>>>>>>> 916f811 (Completed user document upload and admin verification system with file storage, metadata handling, and user status update logic.)
             Booking rejectedBooking = bookingService.rejectBooking(bookingId, driverEmail);
             return ResponseEntity.ok(rejectedBooking); // 200 OK on success
 

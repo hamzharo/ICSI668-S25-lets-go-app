@@ -3,8 +3,12 @@ package com.carsharing.backend.service;
 import java.time.LocalDateTime;
 import java.util.Collections;
 import java.util.List;
+<<<<<<< HEAD
 import java.util.Objects; 
 
+=======
+import java.util.stream.Collectors;
+>>>>>>> 916f811 (Completed user document upload and admin verification system with file storage, metadata handling, and user status update logic.)
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -14,15 +18,27 @@ import org.springframework.transaction.annotation.Transactional;
 import org.springframework.security.access.AccessDeniedException;
 
 import com.carsharing.backend.dto.RideCreationDTO;
+<<<<<<< HEAD
 import com.carsharing.backend.dto.RideUpdateDTO; 
 import com.carsharing.backend.exception.BookingException;
 import com.carsharing.backend.exception.ResourceNotFoundException;
 import com.carsharing.backend.model.Booking; 
+=======
+import com.carsharing.backend.exception.IllegalRideStateException;
+import com.carsharing.backend.exception.ResourceNotFoundException;
+import com.carsharing.backend.exception.UnauthorizedOperationException;
+import com.carsharing.backend.model.BookingStatus;
+>>>>>>> 916f811 (Completed user document upload and admin verification system with file storage, metadata handling, and user status update logic.)
 import com.carsharing.backend.model.Ride;
 import com.carsharing.backend.model.User;
 import com.carsharing.backend.repository.BookingRepository;
 import com.carsharing.backend.repository.RideRepository;
 import com.carsharing.backend.repository.UserRepository;
+import com.carsharing.backend.model.RideStatus;
+import com.carsharing.backend.util.AuthenticationUtil;
+import com.carsharing.backend.dto.RideDTO; 
+import com.carsharing.backend.dto.RideUpdateDTO; 
+
 
 
 // import lombok.AllArgsConstructor;
@@ -58,6 +74,7 @@ public class RideService {
     @Autowired
     private UserRepository userRepository; // To get driver details
 
+<<<<<<< HEAD
     @Autowired // Inject BookingRepository for cancellation logic
     private BookingRepository bookingRepository;
 
@@ -67,6 +84,13 @@ public class RideService {
     
 
 
+=======
+    @Autowired // Use field injection like your other fields
+    private NotificationService notificationService;
+
+    @Autowired
+    private BookingService bookingService;
+>>>>>>> 916f811 (Completed user document upload and admin verification system with file storage, metadata handling, and user status update logic.)
 
     /**
      * Creates a new ride offer based on the provided DTO and driver email.
@@ -77,7 +101,7 @@ public class RideService {
      * @throws ResourceNotFoundException if the driver user is not found.
      */
     @Transactional // Ensures atomicity if more complex operations are added later
-    public Ride createRide(RideCreationDTO rideDTO, String driverEmail) {
+    public RideDTO createRide(RideCreationDTO rideDTO, String driverEmail) {
         // 1. Find the driver User object
         User driver = userRepository.findByEmail(driverEmail)
                 .orElseThrow(() -> {
@@ -116,12 +140,13 @@ public class RideService {
         newRide.setRideNotes(rideDTO.getRideNotes());
 
         // 4. Set initial status (Auditing will handle created/updated timestamps)
-        newRide.setStatus("SCHEDULED"); // Use Enum later
+      
+        newRide.setStatus(RideStatus.SCHEDULED); // Use Enum later
 
         // 5. Save the ride
         Ride savedRide = rideRepository.save(newRide);
         log.info("Ride created successfully with ID: {} by driver: {}", savedRide.getId(), driverEmail);
-        return savedRide;
+        return convertToDto(savedRide);
     }
 
     /**
@@ -133,7 +158,7 @@ public class RideService {
      * @param earliestDeparture The earliest departure time to search from (defaults to now).
      * @return A list of matching Ride entities.
      */
-     public List<Ride> searchRides(String departureCity, String destinationCity, LocalDateTime earliestDeparture) {
+     public List<RideDTO> searchRides(String departureCity, String destinationCity, LocalDateTime earliestDeparture) {
          LocalDateTime searchTime = (earliestDeparture != null) ? earliestDeparture : LocalDateTime.now();
          log.info("Searching for rides from '{}' to '{}' departing after '{}' with available seats",
                   departureCity, destinationCity, searchTime);
@@ -145,9 +170,10 @@ public class RideService {
              0 // Find rides with at least 1 available seat
          );
          log.info("Found {} rides matching search criteria.", results.size());
-         return results;
+         return convertToDtoList(results);
      }
 
+<<<<<<< HEAD
 
         // --- NEW METHOD: Update Ride ---
     @Transactional
@@ -293,4 +319,318 @@ public class RideService {
     }
 }
  
+=======
+    // --- Placeholder for finding rides by driver (for /my-rides endpoint) ---
+    public List<RideDTO> findRidesByDriverEmail(String driverEmail) {
+         User driver = userRepository.findByEmail(driverEmail)
+                .orElseThrow(() -> new ResourceNotFoundException("User (driver) not found with email: " + driverEmail));
+         log.info("Fetching rides for driver ID: {}", driver.getId());
+         List<Ride> rides = rideRepository.findByDriverId(driver.getId()); // Get the entities first
+        return convertToDtoList(rides); // Then convert and return the DTO list
+    }
+
+
+ /**
+ * Allows the driver of the ride to mark it as ACTIVE.
+ *
+ * @param rideId The ID of the ride to start.
+ * @return The updated Ride object.
+ * @throws ResourceNotFoundException if ride not found.
+ * @throws UnauthorizedOperationException if the current user is not the driver.
+ * @throws IllegalRideStateException if the ride is not in SCHEDULED status.
+ */
+@Transactional
+public RideDTO startRide(String rideId) {
+    String currentUserEmail = AuthenticationUtil.getCurrentUserEmail();
+    User driver = userRepository.findByEmail(currentUserEmail)
+            .orElseThrow(() -> new ResourceNotFoundException("Authenticated user not found with email: " + currentUserEmail)); // Should not happen if JWT is valid
+
+    Ride ride = rideRepository.findById(rideId)
+        .orElseThrow(() -> new ResourceNotFoundException("Ride not found with id: " + rideId));
+
+    // Authorization Check: Is the current user the driver of this ride?
+    if (!ride.getDriverId().equals(driver.getId())) {
+        log.warn("User '{}' (ID: {}) attempted to start ride '{}' owned by driver ID '{}'", currentUserEmail, driver.getId(), rideId, ride.getDriverId());
+        throw new UnauthorizedOperationException("Only the driver can start this ride.");
+    }
+
+    // State Check: Can only start a scheduled ride
+    if (ride.getStatus() != RideStatus.SCHEDULED) {
+        log.warn("Attempted to start ride '{}' which is already in status: {}", rideId, ride.getStatus());
+        throw new IllegalRideStateException("Ride cannot be started. Current status: " + ride.getStatus());
+    }
+
+    // Optional: Add time-based checks if needed (e.g., cannot start too early)
+
+    ride.setStatus(RideStatus.ACTIVE);
+    Ride updatedRide = rideRepository.save(ride);
+    log.info("Ride '{}' successfully started by driver '{}'", rideId, currentUserEmail);
+
+   // return convertToDto(updatedRide);
+
+     // **** ADD NOTIFICATION CALL BEFORE THE RETURN STATEMENT ****
+     RideDTO updatedDto = convertToDto(updatedRide); // Convert first
+     notificationService.notifyRideStatusUpdate(updatedDto); // Send notification
+     return updatedDto; // Return the DTO
+}
+
+/**
+ * Allows the driver of the ride to mark it as COMPLETED.
+ *
+ * @param rideId The ID of the ride to complete.
+ * @return The updated Ride object.
+ * @throws ResourceNotFoundException if ride not found.
+ * @throws UnauthorizedOperationException if the current user is not the driver.
+ * @throws IllegalRideStateException if the ride is not in ACTIVE status.
+ */
+@Transactional
+public RideDTO completeRide(String rideId) {
+    String currentUserEmail = AuthenticationUtil.getCurrentUserEmail();
+    User driver = userRepository.findByEmail(currentUserEmail)
+            .orElseThrow(() -> new ResourceNotFoundException("Authenticated user not found with email: " + currentUserEmail));
+
+    Ride ride = rideRepository.findById(rideId)
+        .orElseThrow(() -> new ResourceNotFoundException("Ride not found with id: " + rideId));
+
+    // Authorization Check
+    if (!ride.getDriverId().equals(driver.getId())) {
+         log.warn("User '{}' (ID: {}) attempted to complete ride '{}' owned by driver ID '{}'", currentUserEmail, driver.getId(), rideId, ride.getDriverId());
+        throw new UnauthorizedOperationException("Only the driver can complete this ride.");
+    }
+
+    // State Check: Can only complete an active ride
+    if (ride.getStatus() != RideStatus.ACTIVE) {
+        log.warn("Attempted to complete ride '{}' which is not active. Current status: {}", rideId, ride.getStatus());
+        throw new IllegalRideStateException("Ride cannot be completed. Current status: " + ride.getStatus());
+    }
+
+    ride.setStatus(RideStatus.COMPLETED);
+    Ride updatedRide = rideRepository.save(ride);
+    log.info("Ride '{}' successfully completed by driver '{}'", rideId, currentUserEmail);
+
+    
+
+    // ****  NOTIFICATION CALL BEFORE THE RETURN STATEMENT ****
+    RideDTO updatedDto = convertToDto(updatedRide); // Convert first
+    notificationService.notifyRideStatusUpdate(updatedDto); // Send notification
+    return updatedDto; 
+}
+
+/**
+ * Allows the driver to cancel a ride they own.
+ * (This updates the existing cancel logic if you had one, otherwise add it).
+ *
+ * @param rideId The ID of the ride to cancel.
+ * @throws ResourceNotFoundException if ride not found.
+ * @throws UnauthorizedOperationException if the current user is not the driver.
+ * @throws IllegalRideStateException if the ride is already completed or cancelled.
+ */
+@Transactional
+public void cancelRideByDriver(String rideId) { // Renamed for clarity
+    String currentUserEmail = AuthenticationUtil.getCurrentUserEmail();
+     User driver = userRepository.findByEmail(currentUserEmail)
+            .orElseThrow(() -> new ResourceNotFoundException("Authenticated user not found with email: " + currentUserEmail));
+
+    Ride ride = rideRepository.findById(rideId)
+            .orElseThrow(() -> new ResourceNotFoundException("Ride not found with id: " + rideId));
+
+    // Authorization Check
+    if (!ride.getDriverId().equals(driver.getId())) {
+         log.warn("User '{}' (ID: {}) attempted to cancel ride '{}' owned by driver ID '{}'", currentUserEmail, driver.getId(), rideId, ride.getDriverId());
+        throw new UnauthorizedOperationException("Only the driver can cancel this ride.");
+    }
+
+    // State Check: Cannot cancel a completed ride. Allow cancelling SCHEDULED or ACTIVE rides.
+    if (ride.getStatus() == RideStatus.COMPLETED) {
+         log.warn("Attempted to cancel ride '{}' which is already completed.", rideId);
+         throw new IllegalRideStateException("Cannot cancel a completed ride.");
+    }
+    if (ride.getStatus() == RideStatus.CANCELLED_BY_DRIVER) {
+         log.info("Ride '{}' is already cancelled by driver. No action needed.", rideId);
+         return; // Idempotent: Already in the desired state
+    }
+
+    ride.setStatus(RideStatus.CANCELLED_BY_DRIVER);
+    rideRepository.save(ride);
+    log.info("Ride '{}' successfully cancelled by driver '{}'", rideId, currentUserEmail);
+    notificationService.notifyRideStatusUpdate(convertToDto(ride)); // Send status update
+    bookingService.cancelBookingsForRide(ride.getId(), BookingStatus.CANCELLED_BY_DRIVER);
+
+
+}
+
+
+
+
+// Helper method to convert Ride entity to RideDTO
+    private RideDTO convertToDto(Ride ride) {
+        if (ride == null) {
+            return null;
+        }
+        RideDTO dto = new RideDTO();
+        dto.setId(ride.getId());
+        dto.setDriverId(ride.getDriverId());
+        dto.setDepartureCity(ride.getDepartureCity());
+        dto.setDestinationCity(ride.getDestinationCity());
+        dto.setDepartureAddress(ride.getDepartureAddress());
+        dto.setDestinationAddress(ride.getDestinationAddress());
+        dto.setDepartureTime(ride.getDepartureTime());
+        dto.setEstimatedArrivalTime(ride.getEstimatedArrivalTime());
+        dto.setAvailableSeats(ride.getAvailableSeats());
+        dto.setTotalSeats(ride.getTotalSeats());
+        dto.setFarePerSeat(ride.getFarePerSeat());
+        dto.setIntermediateStops(ride.getIntermediateStops());
+        dto.setLuggagePreference(ride.getLuggagePreference());
+        dto.setSmokingAllowed(ride.isSmokingAllowed());
+        dto.setPetsAllowed(ride.isPetsAllowed());
+        dto.setRideNotes(ride.getRideNotes());
+        dto.setStatus(ride.getStatus()); // Map the status enum
+        dto.setCreatedAt(ride.getCreatedAt()); // Assumes Auditing is setup or handles null
+        dto.setUpdatedAt(ride.getUpdatedAt()); // Assumes Auditing is setup or handles null
+        return dto;
+    }
+
+    // Helper method to convert a list of Ride entities to a list of RideDTOs
+    private List<RideDTO> convertToDtoList(List<Ride> rides) {
+        if (rides == null || rides.isEmpty()) {
+            return Collections.emptyList();
+        }
+        return rides.stream()
+                    .map(this::convertToDto) // Reference the convertToDto method
+                    .collect(Collectors.toList()); // Collect the results into a new list
+    }
+
+// **** START OF NEW METHOD TO ADD ****
+@Transactional
+public RideDTO updateRide(String rideId, RideUpdateDTO rideUpdateDTO) {
+    String currentUserEmail = AuthenticationUtil.getCurrentUserEmail();
+    User driver = userRepository.findByEmail(currentUserEmail)
+            .orElseThrow(() -> {
+                log.error("Authenticated user not found with email: {} during ride update attempt for rideId: {}", currentUserEmail, rideId);
+                return new ResourceNotFoundException("Authenticated driver not found: " + currentUserEmail);
+            });
+
+    Ride ride = rideRepository.findById(rideId)
+        .orElseThrow(() -> {
+            log.warn("Attempt to update non-existent ride with ID: {}", rideId);
+            return new ResourceNotFoundException("Ride not found with id: " + rideId);
+        });
+
+    // 1. Authorization Check
+    if (!ride.getDriverId().equals(driver.getId())) {
+        log.warn("User '{}' (ID: {}) attempted to update ride '{}' owned by driver ID '{}'",
+                currentUserEmail, driver.getId(), rideId, ride.getDriverId());
+        throw new UnauthorizedOperationException("You are not authorized to update this ride.");
+    }
+
+    // 2. State Check
+    if (ride.getStatus() != RideStatus.SCHEDULED) {
+        log.warn("Attempted to update ride '{}' which is not in SCHEDULED status. Current status: {}",
+                rideId, ride.getStatus());
+        throw new IllegalRideStateException("Ride can only be updated if it is in SCHEDULED status. Current status: " + ride.getStatus());
+    }
+
+    // 3. Basic Validation for critical fields
+    if (rideUpdateDTO.getDepartureTime() != null && rideUpdateDTO.getDepartureTime().isBefore(LocalDateTime.now().minusMinutes(1))) {
+         throw new IllegalArgumentException("New departure time must be in the future.");
+    }
+    if (rideUpdateDTO.getTotalSeats() != null && rideUpdateDTO.getTotalSeats() <= 0) {
+        throw new IllegalArgumentException("Total seats must be positive.");
+    }
+    if (rideUpdateDTO.getAvailableSeats() != null && rideUpdateDTO.getTotalSeats() != null && rideUpdateDTO.getAvailableSeats() > rideUpdateDTO.getTotalSeats()) {
+        throw new IllegalArgumentException("Available seats cannot exceed total seats specified in update.");
+    }
+     if (rideUpdateDTO.getAvailableSeats() != null && rideUpdateDTO.getAvailableSeats() < 0) {
+        throw new IllegalArgumentException("Available seats cannot be negative.");
+    }
+
+
+    // 4. Map updatable fields from DTO to entity
+    boolean significantChange = false;
+
+    if (rideUpdateDTO.getDepartureCity() != null && !rideUpdateDTO.getDepartureCity().equals(ride.getDepartureCity())) {
+        ride.setDepartureCity(rideUpdateDTO.getDepartureCity());
+        significantChange = true;
+    }
+    if (rideUpdateDTO.getDestinationCity() != null && !rideUpdateDTO.getDestinationCity().equals(ride.getDestinationCity())) {
+        ride.setDestinationCity(rideUpdateDTO.getDestinationCity());
+        significantChange = true;
+    }
+    if (rideUpdateDTO.getDepartureAddress() != null) {
+        ride.setDepartureAddress(rideUpdateDTO.getDepartureAddress());
+        // Consider if address change is significant
+    }
+    if (rideUpdateDTO.getDestinationAddress() != null) {
+        ride.setDestinationAddress(rideUpdateDTO.getDestinationAddress());
+        // Consider if address change is significant
+    }
+    if (rideUpdateDTO.getDepartureTime() != null && !rideUpdateDTO.getDepartureTime().equals(ride.getDepartureTime())) {
+        ride.setDepartureTime(rideUpdateDTO.getDepartureTime());
+        significantChange = true;
+    }
+
+    if (rideUpdateDTO.getTotalSeats() != null) {
+        int oldTotalSeats = ride.getTotalSeats();
+        int newTotalSeats = rideUpdateDTO.getTotalSeats();
+        int bookedSeats = oldTotalSeats - ride.getAvailableSeats();
+
+        if (newTotalSeats < bookedSeats) {
+            throw new IllegalRideStateException("Cannot reduce total seats ("+newTotalSeats+") below the number of already booked seats (" + bookedSeats + ").");
+        }
+        ride.setTotalSeats(newTotalSeats);
+        if (rideUpdateDTO.getAvailableSeats() == null) { // If available seats not explicitly set in DTO
+             ride.setAvailableSeats(newTotalSeats - bookedSeats);
+        }
+        significantChange = true;
+    }
+
+    if (rideUpdateDTO.getAvailableSeats() != null) {
+        int currentTotalSeats = ride.getTotalSeats(); // Use the (potentially just updated) total seats
+        if (rideUpdateDTO.getAvailableSeats() > currentTotalSeats) {
+             throw new IllegalArgumentException("Available seats ("+rideUpdateDTO.getAvailableSeats()+") cannot exceed total seats (" + currentTotalSeats + ").");
+        }
+         if (rideUpdateDTO.getAvailableSeats() < (currentTotalSeats - ride.getTotalSeats() + ride.getAvailableSeats()) && ride.getTotalSeats() - ride.getAvailableSeats() > 0 ) { // Ensure available seats isn't less than what's needed for current bookings
+            int bookedSeats = ride.getTotalSeats() - ride.getAvailableSeats();
+            if (rideUpdateDTO.getAvailableSeats() < bookedSeats) {
+                 throw new IllegalArgumentException("Cannot set available seats ("+rideUpdateDTO.getAvailableSeats()+") less than already booked seats (" + bookedSeats + ").");
+            }
+        }
+        ride.setAvailableSeats(rideUpdateDTO.getAvailableSeats());
+        significantChange = true;
+    }
+
+
+    if (rideUpdateDTO.getFarePerSeat() != null && rideUpdateDTO.getFarePerSeat().doubleValue() != ride.getFarePerSeat()) {
+        ride.setFarePerSeat(rideUpdateDTO.getFarePerSeat());
+        significantChange = true;
+    }
+    if (rideUpdateDTO.getIntermediateStops() != null) {
+        ride.setIntermediateStops(rideUpdateDTO.getIntermediateStops());
+    }
+    if (rideUpdateDTO.getLuggagePreference() != null) {
+        ride.setLuggagePreference(rideUpdateDTO.getLuggagePreference());
+    }
+    if (rideUpdateDTO.getSmokingAllowed() != null) {
+        ride.setSmokingAllowed(rideUpdateDTO.getSmokingAllowed());
+    }
+    if (rideUpdateDTO.getPetsAllowed() != null) {
+        ride.setPetsAllowed(rideUpdateDTO.getPetsAllowed());
+    }
+    if (rideUpdateDTO.getRideNotes() != null) {
+        ride.setRideNotes(rideUpdateDTO.getRideNotes());
+    }
+
+    Ride updatedRideEntity = rideRepository.save(ride); // Save the entity
+    log.info("Ride '{}' updated in repository by driver '{}'. Significant change: {}", rideId, currentUserEmail, significantChange);
+
+    RideDTO updatedRideDTO = convertToDto(updatedRideEntity); // Convert to DTO for return and notification
+
+    if (significantChange) {
+        bookingService.notifyPassengersOfRideUpdate(rideId, "Details for your booked ride ID " + rideId + " have been updated by the driver. Please review the changes.");
+    }
+
+    return updatedRideDTO;
+}
+// **** END OF NEW METHOD TO ADD ****
+>>>>>>> 916f811 (Completed user document upload and admin verification system with file storage, metadata handling, and user status update logic.)
 
