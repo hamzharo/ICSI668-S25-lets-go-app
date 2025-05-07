@@ -1,69 +1,54 @@
-"use client";
-import { useState } from "react";
-import HeaderBox from "@/components/HeaderBox";
-import RightSidebar from "@/components/RightSidebar";
-// import Sidebar from "@/components/Sidebar";
-import RideButton from "@/components/RideButton";
-import { Suspense } from "react";
-import CreateRideForm from "@/components/CreateRideForm"; // Import the form for creating a ride
-import RequestRideForm from "@/components/RequestRideForm"; // Import the form for requesting a ride
-import UpdateRideForm from "@/components/UpdateRideForm"; // Import the form for updating a ride
-import { log } from "console";
+// frontend/app/(root)/page.tsx
+'use client';
 
-const Home = () => {
-  const loggedInUser = { firstName: "Haroun" }; // Replace with actual user data
-  const [showForm, setShowForm] = useState<string | null>(null); // State to control which form is shown
+import { useAuth } from '@/lib/AuthContext';
+import AdminDashboard from '@/components/dashboards/AdminDashboard';   // Correct import
+import DriverDashboard from '@/components/dashboards/DriverDashboard'; // Correct import
+import PassengerDashboard from '@/components/dashboards/PassengerDashboard'; // Correct import
+import { Loader2 } from 'lucide-react';
+import { useRouter } from 'next/navigation';
+import { useEffect, Suspense } from 'react'; // Suspense is here but not strictly needed for this basic setup
 
-  // Function to show the respective form based on the button clicked
-  const handleButtonClick = (action: string) => {
-    setShowForm(action);
-  };
+// These imports are incorrect for THIS page's designed purpose.
+// They belong on their own specific pages or are named differently.
+// import RideButton from "@/components/RideButton"; // If you created RideButton.tsx, this might be used WITHIN dashboards, not directly here.
+// import CreateRideForm from "@/components/CreateRideForm"; // This functionality is in OfferRideForm.tsx on its own page.
+// import RequestRideForm from "@/components/RequestRideForm"; // This functionality is in RideSearchForm.tsx on its own page.
+// import UpdateRideForm from "@/components/UpdateRideForm"; // This functionality is in EditRideForm.tsx on its own page.
 
-  return (
-    <Suspense fallback={<div>Loading...</div>}>
-      <section className="home">
-        <div className="home-content">
-          <header className="home-header">
-            <HeaderBox
-              type="greeting"
-              title="Welcome"
-              user={loggedInUser?.firstName || "Guest"}
-              subtext="Ride Safely"
-            />
-          </header>
 
-          {/* Conditional rendering of forms based on button clicked */}
-          {showForm === "create" && <CreateRideForm />}
-          {showForm === "request" && <RequestRideForm />}
-          {showForm === "update" && <UpdateRideForm />}
+export default function MainDashboardPage() {
+  const { user, isLoading: authLoading } = useAuth();
+  const router = useRouter();
 
-          <div className="ride-buttons flex flex-col gap-5 mt-5">
-         
-            <RideButton
-              text="Create a Ride"
-              onClick={() => handleButtonClick("create")}
-              variant="create"
-            />
-            <RideButton
-              text="Request a Ride"
-              onClick={() => handleButtonClick("request")}
-              variant="request"
-            />
-            <RideButton
-              text="Update a Ride"
-              onClick={() => handleButtonClick("update")}
-              variant="update"
-              
-            />
-            
-          </div>
-       
+  useEffect(() => {
+    if (!authLoading && !user) {
+      router.replace('/login'); // Redirect unauthenticated users
+    }
+  }, [user, authLoading, router]);
+
+  if (authLoading || !user) { // Show loader if auth is still loading OR if no user (even after auth load)
+    return (
+      <div className="flex flex-grow items-center justify-center h-full">
+        <Loader2 className="h-12 w-12 animate-spin text-primary" />
+      </div>
+    );
+  }
+
+  // Render the appropriate dashboard based on user role
+  switch (user.role) {
+    case 'PASSENGER':
+      return <PassengerDashboard user={user} />;
+    case 'DRIVER':
+      return <DriverDashboard user={user} />;
+    case 'ADMIN':
+      return <AdminDashboard user={user} />;
+    default:
+      console.error("Unknown user role in MainDashboardPage:", user.role);
+      return (
+        <div className="p-6 text-center text-red-600 dark:text-red-400">
+          Error: Invalid user role. Please contact support.
         </div>
-        {/* <Sidebar user={loggedInUser}/> */}
-        <RightSidebar user={loggedInUser} userProfile={() => console.log(" Account added!")} />
-      </section>
-    </Suspense>
-  );
-};
-
-export default Home;
+      );
+  }
+}

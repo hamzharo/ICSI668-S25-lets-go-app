@@ -16,7 +16,8 @@ import { Loader2 } from 'lucide-react';
 import { useRouter } from 'next/navigation'; // Use navigation router
 import { toast } from 'react-toastify'; // Import toast
 import 'react-toastify/dist/ReactToastify.css'; // Import toastify CSS
-//  import './globals.css';
+// import './globals.css';
+import '../app/globals.css'
 
 // --- Configuration (Replace with your actual values) ---
 const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8080'; // Your backend base URL

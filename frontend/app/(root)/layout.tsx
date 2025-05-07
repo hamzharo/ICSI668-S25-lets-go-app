@@ -2,7 +2,7 @@
 // frontend/app/(root)/layout.tsx  <- NEW FILE
 import Sidebar from "@/components/Sidebar"; // Import your Sidebar
 import RightSidebar from "@/components/RightSidebar"; // Import RightSidebar if needed here
-import MobileNav from "@/components/MobileNav"; // Import MobileNav if you have one
+// import MobileNav from "@/components/MobileNav"; // Import MobileNav if you have one
 import React from "react";
 import Image from "next/image";
 import '../globals.css';
@@ -44,12 +44,12 @@ export default function AuthenticatedRootLayout({ children }: Readonly<{ childre
 
             <div className="flex size-full flex-col">
                 {/* Mobile Nav */}
-                <div className="root-layout"> {/* Assuming this class handles mobile header layout */}
+                {/* <div className="root-layout">
                     <Image src="/icons/logo.png" width={30} height={30} alt="logo" />
                     <div>
                         <MobileNav user={loggedInUser} />
                     </div>
-                </div>
+                </div> */}
                 {/* Main content area for the page */}
                 {children}
             </div>
