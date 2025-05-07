@@ -20,7 +20,7 @@ import org.springframework.http.HttpHeaders;
 import java.util.List; // For listing documents later
 
 @RestController
-@RequestMapping("/api/users") // Or /api/documents
+@RequestMapping("/api/documents") // Or /api/documents
 public class DocumentController { // Or DocumentController
 
     private static final Logger log = LoggerFactory.getLogger(UserController.class);
@@ -29,7 +29,7 @@ public class DocumentController { // Or DocumentController
     private DocumentService documentService; // This service will coordinate FileStorageService and DocumentInfoRepository
 
     // Endpoint for a user to upload one of their documents
-    @PostMapping("/me/documents")
+    @PostMapping("/me")
     @PreAuthorize("isAuthenticated()") // Any authenticated user can upload their own docs, or refine to hasRole('DRIVER')
     public ResponseEntity<?> uploadDocument(
             @RequestParam("file") MultipartFile file,
@@ -65,7 +65,7 @@ public class DocumentController { // Or DocumentController
     }
 
     // Placeholder for user to get their own uploaded documents' metadata
-    @GetMapping("/me/documents")
+    @GetMapping("/me")
     @PreAuthorize("isAuthenticated()")
     public ResponseEntity<List<DocumentInfoDTO>> getMyDocuments() {
         Authentication authentication = SecurityContextHolder.getContext().getAuthentication();

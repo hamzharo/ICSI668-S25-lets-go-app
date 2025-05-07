@@ -1,397 +1,340 @@
 package com.carsharing.backend.service;
 
-import java.time.LocalDateTime;
-import java.util.List;
-import java.util.Objects;
-<<<<<<< HEAD
-import java.util.List; // Keep this import
+import com.carsharing.backend.dto.BookingDTO; // Assuming you might want to return DTOs
+import com.carsharing.backend.dto.BookingRequestDTO;
+import com.carsharing.backend.exception.BookingException;
+import com.carsharing.backend.exception.ResourceNotFoundException;
+import com.carsharing.backend.exception.UnauthorizedOperationException; // For consistency
+import com.carsharing.backend.model.*; // User, Ride, Booking, RideStatus, BookingStatus
+import com.carsharing.backend.repository.BookingRepository;
+import com.carsharing.backend.repository.RideRepository;
+import com.carsharing.backend.repository.UserRepository;
+// import com.carsharing.backend.util.AuthenticationUtil; // If used for passenger identity
 
-=======
-import java.util.Collections;
->>>>>>> 916f811 (Completed user document upload and admin verification system with file storage, metadata handling, and user status update logic.)
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
-import org.springframework.transaction.annotation.Transactional; // Important here
+import org.springframework.transaction.annotation.Transactional;
+// import org.springframework.security.access.AccessDeniedException; // Replaced with UnauthorizedOperationException for consistency
 
-import com.carsharing.backend.dto.BookingRequestDTO;
-import com.carsharing.backend.exception.BookingException; // Create this custom exception
-import com.carsharing.backend.exception.ResourceNotFoundException;
-import com.carsharing.backend.model.Booking;
-import com.carsharing.backend.model.Ride;
-import com.carsharing.backend.model.RideStatus;
-import com.carsharing.backend.model.User;
-import com.carsharing.backend.repository.BookingRepository;
-import com.carsharing.backend.repository.RideRepository;
-import com.carsharing.backend.repository.UserRepository;
+import java.time.LocalDateTime;
+import java.util.Collections;
+import java.util.List;
+import java.util.Objects;
+import java.util.Set;
+import java.util.stream.Collectors;
 
-<<<<<<< HEAD
-=======
-
-import com.carsharing.backend.model.BookingStatus;
->>>>>>> 916f811 (Completed user document upload and admin verification system with file storage, metadata handling, and user status update logic.)
-import org.springframework.security.access.AccessDeniedException;
-
-
-
-
-import lombok.AllArgsConstructor;
-import java.util.Arrays; // Import Arrays
-import java.util.Set; // Import Set
-import java.util.stream.Collectors; // Import Collectors
-import lombok.Data;
-import lombok.EqualsAndHashCode;
-import lombok.Getter;
-import lombok.NoArgsConstructor;
-import lombok.Setter;
-import lombok.ToString;
-
-@ToString
-@EqualsAndHashCode
-@AllArgsConstructor
-@NoArgsConstructor
-@Data
-@Setter
-@Getter
 @Service
 public class BookingService {
 
     private static final Logger log = LoggerFactory.getLogger(BookingService.class);
 
-<<<<<<< HEAD
-    public static final String STATUS_REQUESTED = "REQUESTED";
-    public static final String STATUS_CONFIRMED = "CONFIRMED";
-    public static final String STATUS_REJECTED_BY_DRIVER = "REJECTED_BY_DRIVER";
-    public static final String STATUS_CANCELLED_BY_PASSENGER = "CANCELLED_BY_PASSENGER"; 
-    public static final String STATUS_CANCELLED_BY_DRIVER = "CANCELLED_BY_DRIVER"; // Likely needed later
-    public static final String STATUS_COMPLETED = "COMPLETED"; // Likely needed later
-   
-    
-  // Define states from which a passenger can cancel 
-  public static final Set<String> CANCELLABLE_STATES_BY_PASSENGER = Set.of(
-    STATUS_REQUESTED, STATUS_CONFIRMED
-);
-// Define states considered 'active' or 'pending' for ride cancellation impact 
-public static final Set<String> ACTIVE_BOOKING_STATES = Set.of(
-    STATUS_REQUESTED, STATUS_CONFIRMED
-);
-=======
-    // private static final String STATUS_REQUESTED = "REQUESTED";
-    // private static final String STATUS_CONFIRMED = "CONFIRMED";
-    // private static final String STATUS_REJECTED_BY_DRIVER = "REJECTED_BY_DRIVER";
->>>>>>> 916f811 (Completed user document upload and admin verification system with file storage, metadata handling, and user status update logic.)
+    // Define states from which a passenger can cancel
+    public static final Set<BookingStatus> CANCELLABLE_STATES_BY_PASSENGER = Set.of(
+            BookingStatus.REQUESTED, BookingStatus.CONFIRMED
+    );
+    // Define states considered 'active' or 'pending' for ride cancellation impact
+    public static final Set<BookingStatus> ACTIVE_BOOKING_STATES = Set.of(
+            BookingStatus.REQUESTED, BookingStatus.CONFIRMED
+    );
+
+    private final BookingRepository bookingRepository;
+    private final RideRepository rideRepository;
+    private final UserRepository userRepository;
+    private final NotificationService notificationService;
+    // private final AuthenticationUtil authenticationUtil; // If needed for current passenger
 
     @Autowired
-    private BookingRepository bookingRepository;
+    public BookingService(BookingRepository bookingRepository,
+                          RideRepository rideRepository,
+                          UserRepository userRepository,
+                          NotificationService notificationService
+                          ) {
+        this.bookingRepository = bookingRepository;
+        this.rideRepository = rideRepository;
+        this.userRepository = userRepository;
+        this.notificationService = notificationService;
+    }
 
-    @Autowired
-    private RideRepository rideRepository;
+    @Transactional
+        public BookingDTO requestBooking(String rideId, BookingRequestDTO bookingRequestDTO, String passengerEmail) {
+        User passenger = findUserByEmail(passengerEmail);
+        Ride ride = findRideById(rideId);
 
-    @Autowired
-    private UserRepository userRepository;
-
-    @Autowired
-    private NotificationService notificationService;
-
-    @Transactional // Use transaction to ensure Ride update and Booking creation succeed or fail together
-    public Booking requestBooking(String rideId, BookingRequestDTO bookingRequestDTO, String passengerEmail) {
-
-        // 1. Find Passenger
-        User passenger = userRepository.findByEmail(passengerEmail)
-                .orElseThrow(() -> new ResourceNotFoundException("Passenger not found with email: " + passengerEmail));
-
-        // 2. Find Ride
-        Ride ride = rideRepository.findById(rideId)
-                .orElseThrow(() -> new ResourceNotFoundException("Ride not found with ID: " + rideId));
-
-        // 3. --- Validation ---
-        // Check if passenger is trying to book their own ride
         if (Objects.equals(ride.getDriverId(), passenger.getId())) {
             throw new BookingException("Driver cannot book their own ride.");
         }
-        // Check if ride is still scheduled
-         if (ride.getStatus() != RideStatus.SCHEDULED) { // Use Enum later
-             throw new BookingException("Cannot book ride, status is not SCHEDULED (Status: " + ride.getStatus() + ")");
+        if (ride.getStatus() != RideStatus.SCHEDULED) {
+            throw new BookingException("Cannot book ride, status is not SCHEDULED (Status: " + ride.getStatus() + ")");
         }
-         // Check if ride departure time is in the past
         if (ride.getDepartureTime().isBefore(LocalDateTime.now())) {
             throw new BookingException("Cannot book ride, departure time is in the past.");
         }
-        // Check requested seats
-        int requested = bookingRequestDTO.getRequestedSeats();
-        if (requested <= 0) {
-             throw new BookingException("Requested seats must be positive.");
+        int requestedSeats = bookingRequestDTO.getRequestedSeats();
+        if (requestedSeats <= 0) {
+            throw new BookingException("Requested seats must be positive.");
         }
-        // Check available seats
-        if (ride.getAvailableSeats() < requested) {
+        if (ride.getAvailableSeats() < requestedSeats) {
             throw new BookingException(String.format(
                     "Not enough available seats. Requested: %d, Available: %d",
-                    requested, ride.getAvailableSeats()));
+                    requestedSeats, ride.getAvailableSeats()));
         }
-        // Check if passenger already booked this ride (prevent double booking)
-        // Add a check here later if needed
+        // Prevent double booking by the same passenger for the same ride if not cancelled
+        // if (bookingRepository.existsByRideIdAndPassengerIdAndStatusIn(rideId, passenger.getId(),
+        //         List.of(BookingStatus.REQUESTED, BookingStatus.CONFIRMED))) {
+        //     throw new BookingException("You have already requested or confirmed a booking for this ride.");
 
-        // 4. Update Ride: Decrement available seats
-        ride.setAvailableSeats(ride.getAvailableSeats() - requested);
-<<<<<<< HEAD
-        // ride.setUpdatedAt(LocalDateTime.now()); // Let Auditing handle
-        rideRepository.save(ride); // Save the updated ride first
-
-=======
-        rideRepository.save(ride); 
+        if (bookingRepository.existsByRideIdAndPassengerIdAndStatusIn(rideId, passenger.getId(),
+        Set.of(BookingStatus.REQUESTED, BookingStatus.CONFIRMED))) { // Use Set.of()
+         throw new BookingException("You have already requested or confirmed a booking for this ride.");
+        }
         
->>>>>>> 916f811 (Completed user document upload and admin verification system with file storage, metadata handling, and user status update logic.)
-        // 5. Create Booking
+
+
+        ride.setAvailableSeats(ride.getAvailableSeats() - requestedSeats);
+        rideRepository.save(ride);
+
         Booking newBooking = new Booking();
         newBooking.setRideId(rideId);
         newBooking.setPassengerId(passenger.getId());
-        newBooking.setDriverId(ride.getDriverId()); // Store driver ID for convenience
-        newBooking.setRequestedSeats(requested);
-<<<<<<< HEAD
-        newBooking.setStatus("REQUESTED"); // Initial status, Use Enum later
-        newBooking.setCreatedAt(LocalDateTime.now()); // Let Auditing handle
-
-=======
-        newBooking.setStatus(BookingStatus.REQUESTED); // Initial status, Use Enum later
-        // newBooking.setCreatedAt(LocalDateTime.now()); // Let Auditing handle
-        // newBooking.setUpdatedAt(LocalDateTime.now()); // Let Auditing handle
->>>>>>> 916f811 (Completed user document upload and admin verification system with file storage, metadata handling, and user status update logic.)
+        newBooking.setDriverId(ride.getDriverId());
+        newBooking.setRequestedSeats(requestedSeats);
+        newBooking.setStatus(BookingStatus.REQUESTED); // Use Enum
+        // Let Auditing handle createdAt/updatedAt if configured, otherwise:
+        // newBooking.setCreatedAt(LocalDateTime.now());
+        // newBooking.setUpdatedAt(LocalDateTime.now());
 
 
         Booking savedBooking = bookingRepository.save(newBooking);
-
         log.info("Booking request successful for ride ID: {} by passenger: {}. Booking ID: {}",
                 rideId, passengerEmail, savedBooking.getId());
 
-        // Send notification to Driver later
+        // Send notification to Driver about new booking request
+        User driver = userRepository.findById(ride.getDriverId())
+                .orElseThrow(() -> new ResourceNotFoundException("Driver for ride not found")); // Should not happen
+                notificationService.sendBookingRequestNotification(driver.getEmail(), savedBooking.getId(), passenger.getName(), ride.getDepartureCity(), ride.getDestinationCity());
 
-        return savedBooking;
-    }
-    
-    //METHODS FOR CONFIRMATION/REJECTION ---
+        return convertToDto(savedBooking);
+}
+
     @Transactional
-    public Booking confirmBooking(String bookingId, String driverEmail) {
+    public BookingDTO confirmBooking(String bookingId, String driverEmail) {
         log.info("Driver '{}' attempting to confirm booking ID: {}", driverEmail, bookingId);
-        // 1. Find Driver User
         User driver = findUserByEmail(driverEmail);
-
-        // 2. Find Booking
         Booking booking = findBookingById(bookingId);
 
-        // 3. Validation
-        validateDriverOwnership(booking, driver);
-<<<<<<< HEAD
-        validateBookingStatus(booking, STATUS_REQUESTED, "confirm");
+        validateDriverOwnership(booking, driver); // Checks if booking.getDriverId() matches driver.getId()
+        validateBookingStatus(booking, BookingStatus.REQUESTED, "confirm");
 
-        // 4. Update Status
-        booking.setStatus(STATUS_CONFIRMED);
-=======
-        validateBookingStatus(booking, BookingStatus.REQUESTED, "confirm"); // <-- Use Enum
+        booking.setStatus(BookingStatus.CONFIRMED); // Use Enum
+        // booking.setConfirmationTime(LocalDateTime.now()); // If you have this field
+        // Let Auditing handle updatedAt
 
-        // 4. Update Status
-        // booking.setStatus(STATUS_CONFIRMED);
-        booking.setStatus(BookingStatus.CONFIRMED); // <-- Use Enum
->>>>>>> 916f811 (Completed user document upload and admin verification system with file storage, metadata handling, and user status update logic.)
-        booking.setConfirmationTime(LocalDateTime.now()); // Set confirmation time
-        // Let auditing handle updatedAt
-
-        // 5. Save and Return
         Booking updatedBooking = bookingRepository.save(booking);
         log.info("Booking ID: {} confirmed successfully by driver '{}'", bookingId, driverEmail);
 
-        // Send notification to Passenger
-<<<<<<< HEAD
-=======
-        String confirmationPayload = String.format(
-            "Your booking request for ride %s has been CONFIRMED by the driver.",
-            updatedBooking.getRideId()
+        notificationService.sendBookingUpdateNotification(
+                booking.getPassengerId(), // Assuming this is the user's principal (e.g., email or ID)
+                updatedBooking.getId(),
+                updatedBooking.getStatus(),
+                "Your booking for ride " + updatedBooking.getRideId() + " has been confirmed by the driver."
         );
-        try {
-            // Use the specific passenger ID from the updated booking
-            notificationService.notifyUserBookingUpdate(updatedBooking.getPassengerId(), confirmationPayload);
-        } catch (Exception e) {
-            log.error(
-                "Failed to send booking confirmation notification to passenger ID {}: {}",
-                updatedBooking.getPassengerId(),
-                e.getMessage()
-            );
-        }
->>>>>>> 916f811 (Completed user document upload and admin verification system with file storage, metadata handling, and user status update logic.)
-
-        return updatedBooking;
+        return convertToDto(updatedBooking);
     }
 
-    @Transactional // Crucial because we modify Ride as well
-    public Booking rejectBooking(String bookingId, String driverEmail) {
+    @Transactional
+    public BookingDTO rejectBooking(String bookingId, String driverEmail) {
         log.info("Driver '{}' attempting to reject booking ID: {}", driverEmail, bookingId);
-        // 1. Find Driver User
         User driver = findUserByEmail(driverEmail);
-
-        // 2. Find Booking
         Booking booking = findBookingById(bookingId);
 
-        // 3. Validation
         validateDriverOwnership(booking, driver);
-<<<<<<< HEAD
-        validateBookingStatus(booking, STATUS_REQUESTED, "reject");
+        validateBookingStatus(booking, BookingStatus.REQUESTED, "reject");
 
-        // 4. Update Booking Status
-        booking.setStatus(STATUS_REJECTED_BY_DRIVER);
-=======
-        // validateBookingStatus(booking, STATUS_REQUESTED, "reject");
-        validateBookingStatus(booking, BookingStatus.REQUESTED, "reject"); // <-- Use Enum
-
-        // 4. Update Booking Status
-        // booking.setStatus(STATUS_REJECTED_BY_DRIVER);
-        booking.setStatus(BookingStatus.REJECTED_BY_DRIVER); // <-- Use Enum
->>>>>>> 916f811 (Completed user document upload and admin verification system with file storage, metadata handling, and user status update logic.)
-        booking.setCancellationTime(LocalDateTime.now()); // Use cancellation time for rejection too
-         // Let auditing handle updatedAt
+        booking.setStatus(BookingStatus.REJECTED_BY_DRIVER); // Use Enum
+        // booking.setCancellationTime(LocalDateTime.now()); // Or rejectionTime
+        // Let Auditing handle updatedAt
 
         Booking updatedBooking = bookingRepository.save(booking);
         log.info("Booking ID: {} rejected successfully by driver '{}'", bookingId, driverEmail);
 
-        // 5. IMPORTANT: Increment available seats back on the Ride
         incrementAvailableSeats(booking.getRideId(), booking.getRequestedSeats());
 
-        //Send notification to Passenger
-<<<<<<< HEAD
-
-        return updatedBooking;
+        notificationService.sendBookingUpdateNotification(
+                booking.getPassengerId(),
+                updatedBooking.getId(),
+                updatedBooking.getStatus(),
+                "Your booking for ride " + updatedBooking.getRideId() + " has been rejected by the driver."
+        );
+        return convertToDto(updatedBooking);
     }
 
-  //  PASSENGER CANCELLATION ---
     @Transactional
-    public Booking cancelBookingByPassenger(String bookingId, String passengerEmail) {
+    public BookingDTO cancelBookingByPassenger(String bookingId, String passengerEmail) {
         log.info("Passenger '{}' attempting to cancel booking ID: {}", passengerEmail, bookingId);
-
-        // 1. Find Passenger User
         User passenger = findUserByEmail(passengerEmail);
-
-        // 2. Find Booking
         Booking booking = findBookingById(bookingId);
 
-        // 3. Validation
-        // Check ownership
         if (!Objects.equals(booking.getPassengerId(), passenger.getId())) {
-            log.warn("Authorization failed: Passenger '{}' (ID: {}) attempted to cancel booking ID: {} owned by passenger ID: {}",
-                     passenger.getEmail(), passenger.getId(), booking.getId(), booking.getPassengerId());
-            throw new AccessDeniedException("You are not authorized to cancel this booking.");
+            throw new UnauthorizedOperationException("You are not authorized to cancel this booking.");
         }
 
-        // Check if booking is in a cancellable state
         if (!CANCELLABLE_STATES_BY_PASSENGER.contains(booking.getStatus())) {
-             log.warn("Action 'cancel' failed for booking ID: {}. Status '{}' is not cancellable by passenger. Allowed states: {}",
-                     booking.getId(), booking.getStatus(), CANCELLABLE_STATES_BY_PASSENGER);
             throw new BookingException(String.format(
                     "Cannot cancel booking. Current status is '%s'. Cancellable states are: %s.",
-                     booking.getStatus(), CANCELLABLE_STATES_BY_PASSENGER
+                    booking.getStatus(), CANCELLABLE_STATES_BY_PASSENGER
             ));
         }
-
-        // Optional: Add time-based validation here (e.g., cannot cancel within X hours of departure)
-        // Ride rideForTimeCheck = rideRepository.findById(booking.getRideId()).orElse(null);
-        // if (rideForTimeCheck != null && LocalDateTime.now().isAfter(rideForTimeCheck.getDepartureTime().minusHours(2))) {
-        //     throw new BookingException("Cannot cancel booking less than 2 hours before departure.");
+        // Optional time-based validation
+        Ride ride = findRideById(booking.getRideId());
+        // Example: Cannot cancel within 2 hours of departure
+        // if (LocalDateTime.now().isAfter(ride.getDepartureTime().minusHours(2))) {
+        //     throw new BookingException("Cannot cancel booking: too close to departure time.");
         // }
 
-        // 4. Determine if seats need to be incremented
-        boolean wasConfirmed = STATUS_CONFIRMED.equalsIgnoreCase(booking.getStatus());
 
-        // 5. Update Booking Status
-        booking.setStatus(STATUS_CANCELLED_BY_PASSENGER);
-        booking.setCancellationTime(LocalDateTime.now());
+        boolean wasConfirmed = (booking.getStatus() == BookingStatus.CONFIRMED);
+
+        booking.setStatus(BookingStatus.CANCELLED_BY_PASSENGER); // Use Enum
+        // booking.setCancellationTime(LocalDateTime.now());
+        // Let Auditing handle updatedAt
+
         Booking updatedBooking = bookingRepository.save(booking);
         log.info("Booking ID: {} cancelled successfully by passenger '{}'", bookingId, passengerEmail);
 
-        // 6. Increment seats back ONLY if the booking was previously confirmed
         if (wasConfirmed) {
             incrementAvailableSeats(booking.getRideId(), booking.getRequestedSeats());
-        } else {
-            log.info("Seats not incremented for ride ID: {} as cancelled booking was not in CONFIRMED state.", booking.getRideId());
         }
 
-        // Send notification to Driver about cancellation
+        // Notify driver
+        User driver = userRepository.findById(ride.getDriverId())
+                .orElseThrow(() -> new ResourceNotFoundException("Driver for ride not found"));
+        notificationService.sendPassengerCancellationNotification(driver.getEmail(), bookingId, passenger.getName(), ride.getDepartureCity(), ride.getDestinationCity());
 
-        return updatedBooking;
+        return convertToDto(updatedBooking);
     }
 
-/**
-     * Finds all bookings made by the passenger associated with the given email.
-     * @param passengerEmail The email of the passenger.
-     * @return A list of bookings made by the passenger.
-     * @throws ResourceNotFoundException if the user is not found.
-     */
-    public List<Booking> findBookingsByPassengerEmail(String passengerEmail) {
-        // Find the user first to get their ID
-        User passenger = findUserByEmail(passengerEmail); // Reuse existing helper
-
+    public List<BookingDTO> findBookingsByPassengerEmail(String passengerEmail) {
+        User passenger = findUserByEmail(passengerEmail);
         log.info("Fetching bookings for passenger ID: {}", passenger.getId());
-        // Use the existing repository method that finds by passengerId
         List<Booking> bookings = bookingRepository.findByPassengerId(passenger.getId());
-        log.info("Found {} bookings for passenger ID: {}", bookings.size(), passenger.getId());
-        return bookings;
+        return convertToDtoList(bookings);
     }
 
+    // --- METHOD REQUIRED BY RideService ---
+    @Transactional
+    public void cancelBookingsForRide(String rideId, BookingStatus newStatusForBookings) {
+        log.info("Cancelling bookings for ride ID: {} with status: {}", rideId, newStatusForBookings);
+        // List<Booking> bookingsToCancel = bookingRepository.findByRideIdAndStatusIn(rideId, ACTIVE_BOOKING_STATES);
+        List<Booking> bookingsToCancel = bookingRepository.findByRideIdAndStatusIn(rideId, ACTIVE_BOOKING_STATES);
 
-    // --- Helper Methods ---
-=======
-        String rejectionPayload = String.format(
-            "Unfortunately, your booking request for ride %s was REJECTED by the driver.",
-            updatedBooking.getRideId()
-        );
-         try {
-             // Use the specific passenger ID from the updated booking
-            notificationService.notifyUserBookingUpdate(updatedBooking.getPassengerId(), rejectionPayload);
-        } catch (Exception e) {
-            log.error(
-                "Failed to send booking rejection notification to passenger ID {}: {}",
-                updatedBooking.getPassengerId(),
-                e.getMessage()
+        Ride ride = findRideById(rideId); // To restore seats if bookings were confirmed
+
+        for (Booking booking : bookingsToCancel) {
+            boolean wasConfirmed = (booking.getStatus() == BookingStatus.CONFIRMED);
+            booking.setStatus(newStatusForBookings);
+            // booking.setCancellationTime(LocalDateTime.now());
+            bookingRepository.save(booking);
+
+            if (wasConfirmed) {
+                // This logic is slightly different: we are restoring ALL seats for the ride,
+                // assuming the ride itself is being cancelled.
+                // The individual seat increment logic is more for when a single booking is rejected/cancelled.
+                // For a full ride cancellation, seatsAvailable should go back to totalSeats if no other logic applies.
+                // However, if RideService is managing the ride's seats directly upon its own cancellation,
+                // this might be redundant or conflict. Let's assume for now RideService handles overall seat reset,
+                // and this method primarily updates booking statuses and notifies.
+                // If not, we need to increment here. For now, just notify.
+                log.info("Booking ID {} for ride {} was confirmed, now cancelled due to ride cancellation.", booking.getId(), rideId);
+            }
+            // Notify passenger
+            notificationService.sendBookingUpdateNotification(
+                    booking.getPassengerId(),
+                    booking.getId(),
+                    newStatusForBookings,
+                    "Your booking has been cancelled because the ride (ID: " + rideId + ") was cancelled by the driver."
             );
         }
-        // End of notification block
-        return updatedBooking;
+        // After cancelling all bookings for a ride, the ride's available seats should typically be reset to total seats
+        // This logic might be better placed in RideService.cancelRideByDriver after this call.
+        // For now, let's ensure RideService handles that seat reset.
+        log.info("Finished processing booking cancellations for ride ID: {}", rideId);
     }
 
-    // --- Helper Methods ---
+    // --- METHOD REQUIRED BY RideService (for completing ride) ---
+    @Transactional
+    public void updateBookingsStatusForRide(String rideId, BookingStatus newStatus) {
+        log.info("Updating status of bookings for ride ID: {} to {}", rideId, newStatus);
+        // Typically, you'd update CONFIRMED bookings to COMPLETED.
+        // If REQUESTED bookings should also be updated (e.g., to EXPIRED or CANCELLED), adjust this.
+        List<Booking> bookingsToUpdate = bookingRepository.findByRideIdAndStatusIn(rideId, Set.of(BookingStatus.CONFIRMED, BookingStatus.REQUESTED));
 
->>>>>>> 916f811 (Completed user document upload and admin verification system with file storage, metadata handling, and user status update logic.)
+        for (Booking booking : bookingsToUpdate) {
+             if (booking.getStatus() == BookingStatus.CONFIRMED && newStatus == BookingStatus.COMPLETED) {
+                booking.setStatus(BookingStatus.COMPLETED);
+                // booking.setCompletionTime(LocalDateTime.now()); // If you track this
+                bookingRepository.save(booking);
+                log.info("Booking ID {} for ride {} marked as COMPLETED.", booking.getId(), rideId);
+                // Optionally notify passenger of ride completion
+            } else if (booking.getStatus() == BookingStatus.REQUESTED && newStatus == BookingStatus.COMPLETED) {
+                // What to do with REQUESTED bookings when a ride is COMPLETED?
+                // Option: Mark them as EXPIRED or REJECTED_BY_SYSTEM etc.
+                // For now, let's assume we only care about confirmed bookings for completion.
+                log.info("Booking ID {} for ride {} was REQUESTED. Ride completed, booking not actioned further.", booking.getId(), rideId);
+            }
+        }
+    }
+
+    
+    // --- METHOD REQUIRED BY RideService (for notifying passengers of ride update) ---
+    public void notifyPassengersOfRideUpdate(String rideId, String message) {
+        List<Booking> confirmedBookings = bookingRepository.findByRideIdAndStatusIn(
+            rideId,
+            Set.of(BookingStatus.CONFIRMED) // <-- CORRECTED: Use Set.of() instead of Collections.singletonList()
+        );
+
+        if (confirmedBookings.isEmpty()) {
+            log.info("No confirmed passengers to notify for ride update: {} (Ride ID)", rideId);
+            return;
+        }
+
+        log.info("Notifying {} confirmed passengers about update to ride: {} (Ride ID)", confirmedBookings.size(), rideId);
+        for (Booking booking : confirmedBookings) {
+            String passengerUserId = booking.getPassengerId(); // Ensure passengerId on Booking is the user's principal
+            notificationService.sendBookingUpdateNotification(
+                passengerUserId,
+                booking.getId(),
+                booking.getStatus(), // Status of booking hasn't changed, but custom message indicates ride update
+                message
+            );
+        }
+    }
+
+    // --- Helper Methods (refactored to use Enums) ---
     private User findUserByEmail(String email) {
         return userRepository.findByEmail(email)
                 .orElseThrow(() -> new ResourceNotFoundException("User not found with email: " + email));
     }
 
     private Booking findBookingById(String bookingId) {
-<<<<<<< HEAD
-=======
-        // log.info(">>> findBookingById called with ID: [{}]", bookingId);
->>>>>>> 916f811 (Completed user document upload and admin verification system with file storage, metadata handling, and user status update logic.)
         return bookingRepository.findById(bookingId)
                 .orElseThrow(() -> new ResourceNotFoundException("Booking not found with ID: " + bookingId));
     }
 
+    private Ride findRideById(String rideId) { // Added this helper
+        return rideRepository.findById(rideId)
+                .orElseThrow(() -> new ResourceNotFoundException("Ride not found with ID: " + rideId));
+    }
+
     private void validateDriverOwnership(Booking booking, User driver) {
-        // Ensure the authenticated user is the driver associated with the booking
         if (!Objects.equals(booking.getDriverId(), driver.getId())) {
-            log.warn("Authorization failed: Driver '{}' (ID: {}) attempted to access booking ID: {} owned by driver ID: {}",
-                     driver.getEmail(), driver.getId(), booking.getId(), booking.getDriverId());
-            throw new AccessDeniedException("You are not authorized to manage this booking."); // Use Spring Security's exception
+            throw new UnauthorizedOperationException("You are not authorized to manage this booking.");
         }
     }
 
-<<<<<<< HEAD
-    private void validateBookingStatus(Booking booking, String expectedStatus, String action) {
-        // Ensure the booking is in the correct state for the action
-        if (!expectedStatus.equalsIgnoreCase(booking.getStatus())) {
-=======
-    private void validateBookingStatus(Booking booking, BookingStatus  expectedStatus, String action) {
-        // Ensure the booking is in the correct state for the action
+    private void validateBookingStatus(Booking booking, BookingStatus expectedStatus, String action) {
         if (booking.getStatus() != expectedStatus) {
->>>>>>> 916f811 (Completed user document upload and admin verification system with file storage, metadata handling, and user status update logic.)
-            log.warn("Action '{}' failed for booking ID: {}. Expected status '{}', but was '{}'",
-                     action, booking.getId(), expectedStatus, booking.getStatus());
             throw new BookingException(String.format(
                     "Cannot %s booking. Current status is '%s', expected '%s'.",
                     action, booking.getStatus(), expectedStatus
@@ -399,127 +342,35 @@ public static final Set<String> ACTIVE_BOOKING_STATES = Set.of(
         }
     }
 
-     private void incrementAvailableSeats(String rideId, int seatsToIncrement) {
-        Ride ride = rideRepository.findById(rideId)
-                .orElseThrow(() -> {
-                     // This should ideally not happen if the booking existed, but good practice to handle
-                     log.error("Consistency Error: Ride not found with ID {} while trying to increment seats for rejected booking.", rideId);
-                     return new ResourceNotFoundException("Associated ride not found with ID: " + rideId);
-                });
-
-        // Ensure we don't exceed total seats (safety check)
+    private void incrementAvailableSeats(String rideId, int seatsToIncrement) {
+        Ride ride = findRideById(rideId);
         int newSeatCount = Math.min(ride.getTotalSeats(), ride.getAvailableSeats() + seatsToIncrement);
         ride.setAvailableSeats(newSeatCount);
         rideRepository.save(ride);
         log.info("Incremented available seats for ride ID: {} by {} (New count: {})", rideId, seatsToIncrement, newSeatCount);
     }
 
-<<<<<<< HEAD
-    // --- Methods for listing requests etc. will go here later ---
-
-=======
-   /**
- * Cancels all active (REQUESTED or CONFIRMED) bookings associated with a given ride ID.
- * Typically called when a driver cancels the entire ride.
- * It also increments the available seats back on the ride for each affected booking.
- *
- * @param rideId The ID of the ride being cancelled.
- * @param cancellationStatus The status to set on the cancelled bookings (e.g., CANCELLED_BY_DRIVER).
- */
-@Transactional // Ensure atomicity across multiple bookings and the ride update
-public void cancelBookingsForRide(String rideId, BookingStatus cancellationStatus) {
-    log.info("Attempting to cancel bookings for cancelled ride ID: {} with status: {}", rideId, cancellationStatus);
-
-    // Find bookings for this ride that are in a state needing cancellation
-    List<BookingStatus> statusesToCancel = List.of(BookingStatus.REQUESTED, BookingStatus.CONFIRMED);
-    List<Booking> bookingsToCancel = bookingRepository.findByRideIdAndStatusIn(rideId, statusesToCancel);
-
-    if (bookingsToCancel.isEmpty()) {
-        log.info("No active bookings found for ride ID {} to cancel.", rideId);
-        return; // Nothing to do
+    // Helper for DTO conversion (assuming BookingDTO exists)
+    private BookingDTO convertToDto(Booking booking) {
+        if (booking == null) return null;
+        BookingDTO dto = new BookingDTO();
+        dto.setId(booking.getId());
+        dto.setRideId(booking.getRideId());
+        dto.setPassengerId(booking.getPassengerId());
+        dto.setDriverId(booking.getDriverId());
+        dto.setRequestedSeats(booking.getRequestedSeats());
+        dto.setStatus(booking.getStatus());
+        dto.setBookingTime(booking.getCreatedAt());  // Or createdAt if using that name
+        dto.setConfirmationTime(booking.getConfirmationTime());
+        dto.setCancellationTime(booking.getCancellationTime());
+        // Add other fields if your BookingDTO has them
+        return dto;
     }
 
-    log.info("Found {} bookings to cancel for ride ID: {}", bookingsToCancel.size(), rideId);
-
-    int totalSeatsToRestore = 0;
-    LocalDateTime cancellationTime = LocalDateTime.now();
-
-    // Update status and calculate seats to restore
-    for (Booking booking : bookingsToCancel) {
-        // Only restore seats if the booking was actually holding them (e.g., CONFIRMED, or maybe REQUESTED depending on your logic in requestBooking)
-        // Based on your current requestBooking logic, seats are decremented immediately.
-        if (booking.getStatus() == BookingStatus.REQUESTED || booking.getStatus() == BookingStatus.CONFIRMED) {
-             totalSeatsToRestore += booking.getRequestedSeats();
+    private List<BookingDTO> convertToDtoList(List<Booking> bookings) {
+        if (bookings == null || bookings.isEmpty()) {
+            return Collections.emptyList();
         }
-        booking.setStatus(cancellationStatus);
-        booking.setCancellationTime(cancellationTime); // Set cancellation time
-        // Let auditing handle updatedAt
-
-        // Send notification to passenger
-        // Consider creating a simple payload DTO or just sending a message String
-        String notificationPayload = String.format("Your booking for ride %s was cancelled because the ride was cancelled by the driver.", rideId);
-        try {
-            notificationService.notifyUserBookingUpdate(booking.getPassengerId(), notificationPayload);
-        } catch (Exception e) {
-            // Log error but don't let notification failure stop the cancellation process
-            log.error("Failed to send cancellation notification to passenger ID {}: {}", booking.getPassengerId(), e.getMessage());
-        }
+        return bookings.stream().map(this::convertToDto).collect(Collectors.toList());
     }
-
-    // Save all updated bookings
-    bookingRepository.saveAll(bookingsToCancel);
-    log.info("Updated status for {} bookings for ride ID: {}", bookingsToCancel.size(), rideId);
-
-    // Increment available seats back on the Ride *after* processing bookings
-    if (totalSeatsToRestore > 0) {
-        try {
-            // Use the helper method if it fits, or re-implement logic safely
-            incrementAvailableSeats(rideId, totalSeatsToRestore);
-        } catch (Exception e) {
-            // Log error but the bookings are already cancelled. Ride seat count might be inconsistent.
-            log.error("Failed to increment available seats back on ride ID {} after cancelling bookings: {}", rideId, e.getMessage());
-            // Consider adding more robust error handling or retry logic if seat count is critical
-        }
-    }
-}
-
- // **** START OF NEW METHOD TO ADD ****
- public void notifyPassengersOfRideUpdate(String rideId, String message) {
-    // Find all CONFIRMED bookings for this ride
-    // Make sure your BookingRepository has a method like findByRideIdAndStatusIn or adapt accordingly
-    List<Booking> confirmedBookings = bookingRepository.findByRideIdAndStatusIn(
-        rideId,
-        Collections.singletonList(BookingStatus.CONFIRMED)
-    );
-
-    if (confirmedBookings.isEmpty()) {
-        log.info("No confirmed passengers to notify for ride update: {} (Ride ID)", rideId);
-        return;
-    }
-
-    log.info("Notifying {} confirmed passengers about update to ride: {} (Ride ID)", confirmedBookings.size(), rideId);
-    for (Booking booking : confirmedBookings) {
-        // Assuming your User model (linked via passengerId) has an email or a way to get a user-specific topic.
-        // And assuming Booking model has a getPassengerId() method that returns the User's ID.
-        String passengerUserId = booking.getPassengerId(); // This needs to be the actual User ID for notification
-
-        // Re-check your NotificationService's sendBookingUpdateNotification method signature.
-        // It might expect a User object, user ID, or user email.
-        // Let's assume it takes passengerUserId, bookingId, current booking status, and a custom message.
-        notificationService.sendBookingUpdateNotification(
-            passengerUserId,
-            booking.getId(),
-            booking.getStatus(), // The booking status itself hasn't changed, but the ride it's for has.
-            message
-        );
-        // Example if your notification service sends to a specific user queue and needs the user's email principal
-        // User passenger = userRepository.findById(passengerUserId).orElse(null);
-        // if (passenger != null) {
-        //     notificationService.sendPrivateNotification(passenger.getEmail(), "Your booked ride " + rideId + " has been updated: " + message);
-        // }
-    }
-}
-// **** END OF NEW METHOD TO ADD ****
->>>>>>> 916f811 (Completed user document upload and admin verification system with file storage, metadata handling, and user status update logic.)
-
 }

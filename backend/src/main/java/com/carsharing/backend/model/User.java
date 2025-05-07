@@ -20,13 +20,8 @@ public class User {
     private String name;
     private String email;
     private String password;
-<<<<<<< HEAD
     private List<String> roles; 
     private String driverStatus; // e.g., "NONE", "PENDING_APPROVAL", "APPROVED", "REJECTED"
-=======
-    private List<String> roles;
-    private String driverStatus;  
->>>>>>> 916f811 (Completed user document upload and admin verification system with file storage, metadata handling, and user status update logic.)
 
     @Field("documents") // Optional, good practice
     private List<DocumentInfo> documents = new ArrayList<>(); // Initialize to avoid nulls

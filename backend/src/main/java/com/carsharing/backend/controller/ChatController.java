@@ -33,6 +33,7 @@ import java.security.Principal;
 import java.time.LocalDateTime;
 import java.util.ArrayList; // Import ArrayList
 import java.util.List; // Import List
+import java.util.Set;
 import java.util.stream.Collectors; // Import Collectors
 
 @RestController // Use @RestController to handle both @MessageMapping and @GetMapping
@@ -80,8 +81,8 @@ public class ChatController {
 
         // Verify sender is part of this ride's chat (driver or confirmed passenger)
         boolean isDriver = ride.getDriverId().equals(sender.getId());
-        boolean isConfirmedPassenger = bookingRepository.existsByRideIdAndPassengerIdAndStatus(
-                                            rideId, sender.getId(), BookingStatus.CONFIRMED);
+     boolean isConfirmedPassenger = bookingRepository.existsByRideIdAndPassengerIdAndStatusIn(
+                                        rideId, sender.getId(), Set.of(BookingStatus.CONFIRMED));
 
         if (!isDriver && !isConfirmedPassenger) {
             log.warn("Unauthorized chat message attempt by user {} ({}) for ride {}", senderEmail, sender.getId(), rideId);
@@ -160,8 +161,8 @@ public class ChatController {
 
 
         boolean isDriver = ride.getDriverId().equals(currentUser.getId());
-        boolean isConfirmedPassenger = bookingRepository.existsByRideIdAndPassengerIdAndStatus(
-                                            rideId, currentUser.getId(), BookingStatus.CONFIRMED);
+        boolean isConfirmedPassenger = bookingRepository.existsByRideIdAndPassengerIdAndStatusIn(
+                                            rideId, currentUser.getId(), Set.of(BookingStatus.CONFIRMED));
 
         if (!isDriver && !isConfirmedPassenger) {
             log.warn("Unauthorized attempt to access chat history by user {} ({}) for ride {}", userEmail, currentUser.getId(), rideId);

@@ -37,7 +37,6 @@ public class SecurityConfig {
 
     @Bean
     public SecurityFilterChain securityFilterChain(HttpSecurity http) throws Exception {
-<<<<<<< HEAD
 
         http
         // Apply CORS configuration FIRST
@@ -45,32 +44,11 @@ public class SecurityConfig {
         .csrf(csrf -> csrf.disable()) // Disable CSRF for stateless APIs
         .authorizeHttpRequests(authz -> authz
             // Allow access to root, health, and authentication endpoints
-            .requestMatchers("/", "/api/auth/**", "/api/health").permitAll()
+            .requestMatchers("/", "/api/auth/**", "/api/health", "api/driver/**").permitAll()
             // Secure all other requests
             .anyRequest().authenticated()
         )
         .sessionManagement(session -> session.sessionCreationPolicy(SessionCreationPolicy.STATELESS));
-=======
-        http
-            // 1. Enable CORS using the CorsConfigurationSource bean defined below
-            .cors(Customizer.withDefaults())
-            // 2. Disable CSRF
-            .csrf(csrf -> csrf.disable())
-            // 3. Configure Authorization Rules
-            .authorizeHttpRequests(authz -> authz
-                // Allow OPTIONS requests globally (important for preflight)
-                .requestMatchers(HttpMethod.OPTIONS, "/**").permitAll()
-                // Allow unauthenticated access to auth endpoints, root, and health
-                .requestMatchers("/", "/api/auth/**", "/api/health").permitAll()
-                 // Secure all other requests
-                .anyRequest().authenticated()
-            )
-            // 4. Set session management to stateless
-            .sessionManagement(session -> session.sessionCreationPolicy(SessionCreationPolicy.STATELESS));
-
-        // 5. Add your JWT filter
-        http.addFilterBefore(jwtFilter, UsernamePasswordAuthenticationFilter.class);
->>>>>>> 916f811 (Completed user document upload and admin verification system with file storage, metadata handling, and user status update logic.)
 
     http.addFilterBefore(jwtFilter, UsernamePasswordAuthenticationFilter.class);
 
@@ -116,27 +94,23 @@ public class SecurityConfig {
     public PasswordEncoder passwordEncoder() {
         return new BCryptPasswordEncoder();
     }
-<<<<<<< HEAD
+}
     // --- Add this CORS Configuration Bean ---
-    @Bean
-    CorsConfigurationSource corsConfigurationSource() {
-        CorsConfiguration configuration = new CorsConfiguration();
-        // IMPORTANT: Allow the origin of your frontend development server
-        configuration.setAllowedOrigins(Arrays.asList("http://localhost:3000"));
-        // Allow common methods
-        configuration.setAllowedMethods(Arrays.asList("GET", "POST", "PUT", "DELETE", "OPTIONS", "HEAD"));
-        // Allow common headers, including Authorization for JWT
-        configuration.setAllowedHeaders(Arrays.asList("Authorization", "Cache-Control", "Content-Type"));
-        // Allow credentials (important if you were using cookies/sessions, less critical for pure JWT but good practice)
-        // configuration.setAllowCredentials(true); // Uncomment if needed later
+//     @Bean
+//     CorsConfigurationSource corsConfigurationSource() {
+//         CorsConfiguration configuration = new CorsConfiguration();
+//         // IMPORTANT: Allow the origin of your frontend development server
+//         configuration.setAllowedOrigins(Arrays.asList("http://localhost:3000"));
+//         // Allow common methods
+//         configuration.setAllowedMethods(Arrays.asList("GET", "POST", "PUT", "DELETE", "OPTIONS", "HEAD"));
+//         // Allow common headers, including Authorization for JWT
+//         configuration.setAllowedHeaders(Arrays.asList("Authorization", "Cache-Control", "Content-Type"));
+//         // Allow credentials (important if you were using cookies/sessions, less critical for pure JWT but good practice)
+//         // configuration.setAllowCredentials(true); // Uncomment if needed later
 
-        UrlBasedCorsConfigurationSource source = new UrlBasedCorsConfigurationSource();
-        source.registerCorsConfiguration("/api/**", configuration); // Apply CORS to all /api paths
-        return source;
-    }
-    // --- End of CORS Configuration Bean ---
-}
-=======
-}
-
->>>>>>> 916f811 (Completed user document upload and admin verification system with file storage, metadata handling, and user status update logic.)
+//         UrlBasedCorsConfigurationSource source = new UrlBasedCorsConfigurationSource();
+//         source.registerCorsConfiguration("/api/**", configuration); // Apply CORS to all /api paths
+//         return source;
+//     }
+//     // --- End of CORS Configuration Bean ---
+// }

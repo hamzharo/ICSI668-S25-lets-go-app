@@ -7,6 +7,7 @@ import com.carsharing.backend.service.BookingService;
 
 import com.carsharing.backend.service.UserService; // Import UserService
 import com.carsharing.backend.model.User; // Import User
+import com.carsharing.backend.dto.BookingDTO;
 import com.carsharing.backend.exception.ActionNotAllowedException;
 
 import org.slf4j.Logger;
@@ -92,16 +93,20 @@ public class PassengerController {
             String passengerEmail = authentication.getName();
             log.info("Passenger '{}' requesting their bookings.", passengerEmail);
 
-            List<Booking> bookings = bookingService.findBookingsByPassengerEmail(passengerEmail);
+            List<BookingDTO> bookingDTOs = bookingService.findBookingsByPassengerEmail(passengerEmail);
 
-            if (bookings.isEmpty()) {
-                 log.info("No bookings found for passenger '{}'.", passengerEmail);
-                return new ResponseEntity<>(HttpStatus.NO_CONTENT); // 204 if no bookings
-            }
+            if (bookingDTOs.isEmpty()) {
+                log.info("No bookings found for passenger '{}'.", passengerEmail);
+               return new ResponseEntity<>(HttpStatus.NO_CONTENT); // 204 if no bookings
+           }
 
-            log.info("Returning {} bookings for passenger '{}'.", bookings.size(), passengerEmail);
-            return ResponseEntity.ok(bookings); // 200 OK with list
+           log.info("Returning {} bookings for passenger '{}'.", bookingDTOs.size(), passengerEmail);
 
+            return ResponseEntity.ok(bookingDTOs);
+
+            // return ResponseEntity.ok(bookingDTOs); // 200 OK with list
+
+            
         } catch (ResourceNotFoundException e) {
             // Shouldn't happen if token valid, but handle defensively
              log.warn("Get my bookings failed: {}", e.getMessage());
@@ -125,9 +130,9 @@ public class PassengerController {
             Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
             String passengerEmail = authentication.getName();
 
-            Booking cancelledBooking = bookingService.cancelBookingByPassenger(bookingId, passengerEmail);
+            BookingDTO cancelledBookingDTO = bookingService.cancelBookingByPassenger(bookingId, passengerEmail);
             // Return 200 OK with the updated booking details
-            return ResponseEntity.ok(cancelledBooking);
+            return ResponseEntity.ok(cancelledBookingDTO);
 
         } catch (ResourceNotFoundException e) {
             log.warn("Cancel booking failed: {}", e.getMessage());

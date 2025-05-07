@@ -18,6 +18,7 @@ public class RideCreationDTO {
     private boolean smokingAllowed;
     private boolean petsAllowed;
     private String rideNotes; // Optional
+    private LocalDateTime estimatedArrivalTime;
 
     // --- Getters and Setters (or use Lombok @Data) ---
 
@@ -56,4 +57,7 @@ public class RideCreationDTO {
 
     public String getRideNotes() { return rideNotes; }
     public void setRideNotes(String rideNotes) { this.rideNotes = rideNotes; }
+
+    public LocalDateTime getEstimatedArrivalTime() { return estimatedArrivalTime; }
+    public void setEstimatedArrivalTime(LocalDateTime estimatedArrivalTime) { this.estimatedArrivalTime = estimatedArrivalTime; }
 }

@@ -10,6 +10,8 @@ import com.carsharing.backend.repository.UserRepository;
 import org.springframework.util.StringUtils;
 
 import com.carsharing.backend.model.DocumentInfo; // Import DocumentInfo
+import com.carsharing.backend.model.DocumentStatus;
+
 import org.springframework.web.multipart.MultipartFile; // Import MultipartFile
 import java.time.LocalDateTime; // Import LocalDateTime
 // import org.springframework.security.access.AccessDeniedException; // Keep this
@@ -170,7 +172,7 @@ public class UserService { // Or DriverApplicationService
     if (originalFilenameNullable == null) {
         throw new FileStorageException("Cannot upload file with null filename."); // Or IllegalArgumentException
     }
-    String storedFilename = fileStorageService.storeFile(file);
+    String storedFilename = fileStorageService.storeFile(file, user.getId(), documentType);
     String originalFilename = StringUtils.cleanPath(originalFilenameNullable); // Use cleaned variable
 
         // 3. Create Metadata
@@ -183,7 +185,7 @@ public class UserService { // Or DriverApplicationService
         // For simplicity now, storing filename. Viewing endpoint will need base dir.
         docInfo.setFilePath(storedFilename);
         docInfo.setUploadTimestamp(LocalDateTime.now());
-        docInfo.setVerificationStatus("PENDING_REVIEW"); // Initial status
+        docInfo.setVerificationStatus(DocumentStatus.PENDING_VERIFICATION); // Initial status
 
         // 4. Add metadata to user's document list
         // Ensure list exists (should be handled by constructor/getter)

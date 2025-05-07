@@ -1,9 +1,10 @@
 package com.carsharing.backend.controller;
 
+import com.carsharing.backend.dto.BookingDTO;
 import com.carsharing.backend.dto.BookingRequestDTO; // Import DTO
 import com.carsharing.backend.exception.BookingException; // Import custom exceptions
 import com.carsharing.backend.exception.ResourceNotFoundException;
-import com.carsharing.backend.model.Booking; // Import Booking model
+// import com.carsharing.backend.model.Booking; // Import Booking model
 import com.carsharing.backend.service.BookingService; // Import BookingService
 import com.carsharing.backend.service.RideService;    // Import RideService
 import org.slf4j.Logger;                      // Import Logger
@@ -92,11 +93,11 @@ public class RideController {
             log.info("Passenger '{}' requesting booking for ride '{}' with {} seats",
                      passengerEmail, rideId, bookingRequestDTO.getRequestedSeats());
 
-            Booking createdBooking = bookingService.requestBooking(rideId, bookingRequestDTO, passengerEmail);
+            BookingDTO createdBookingDTO = bookingService.requestBooking(rideId, bookingRequestDTO, passengerEmail);
 
-            log.info("Booking request successful, created booking ID: {}", createdBooking.getId());
+            log.info("Booking request successful, created booking ID: {}", createdBookingDTO.getId());
             // Return 201 Created with the booking details
-            return new ResponseEntity<>(createdBooking, HttpStatus.CREATED);
+            return new ResponseEntity<>(createdBookingDTO, HttpStatus.CREATED);
 
         } catch (ResourceNotFoundException e) {
             log.warn("Booking request failed: {}", e.getMessage());
