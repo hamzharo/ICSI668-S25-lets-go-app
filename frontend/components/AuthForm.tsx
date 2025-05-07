@@ -2,7 +2,7 @@
 
 'use client';
 
-import React, { useEffect, useState } from 'react';
+import React, { useState } from 'react'; // Removed useEffect as it wasn't used
 import { z } from 'zod';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { useForm } from 'react-hook-form';
@@ -10,82 +10,70 @@ import { Button } from "@/components/ui/button";
 import { Form } from "@/components/ui/form";
 import Link from 'next/link';
 import Image from "next/image";
-import CustomInput from './CustomInput'; // Ensure this component exists and works
-import { authformSchema } from '@/lib/utils'; // Ensure this schema is correctly defined
+import CustomInput from './CustomInput';
+import { authformSchema } from '@/lib/utils';
 import { Loader2 } from 'lucide-react';
-import { useRouter } from 'next/navigation'; // Use navigation router
-import { toast } from 'react-toastify'; // Import toast
-import 'react-toastify/dist/ReactToastify.css'; // Import toastify CSS
-// import './globals.css';
-import '../app/globals.css'
+import { useRouter } from 'next/navigation';
+import { toast } from 'react-toastify';
+import 'react-toastify/dist/ReactToastify.css';
+import '../app/globals.css';
 
-// --- Configuration (Replace with your actual values) ---
-const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8080'; // Your backend base URL
+// --- Configuration ---
+const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8080';
 const LOGIN_ENDPOINT = '/api/auth/login';
 const REGISTER_ENDPOINT = '/api/auth/register';
-const AUTH_COOKIE_NAME = 'your_auth_token_cookie_name'; // <-- MUST match the name in middleware.ts!
+// ACTION (User): Ensure this AUTH_COOKIE_NAME matches .env.local, AuthContext.tsx, and middleware.ts
+const AUTH_COOKIE_NAME = process.env.NEXT_PUBLIC_AUTH_COOKIE_NAME || 'your_auth_token_cookie_name';
 // --- End Configuration ---
 
 
 const AuthForm = ({ type }: { type: string }) => {
-
     const [isLoading, setIsLoading] = useState(false);
     const router = useRouter();
-    // const pathname = usePathname(); // Not strictly needed anymore with middleware handling redirects
-
-    // useEffect(() => {
-    //     // Middleware should handle redirecting logged-in users away from login/register
-    // }, []); // Keep useEffect minimal if middleware handles redirects
-
     const formSchema = authformSchema(type);
 
-    // Define form
     const form = useForm<z.infer<typeof formSchema>>({
         resolver: zodResolver(formSchema),
         defaultValues: {
-            email: '',
+            email: '', // Schema uses 'email'
             password: '',
             firstName: '',
             lastName: ''
         }
     });
 
-    // Submit handler - Updated for backend integration
     const onSubmit = async (data: z.infer<typeof formSchema>) => {
         setIsLoading(true);
         let apiData;
         let apiUrl;
 
-        // Prepare data and endpoint based on form type
         if (type === 'login') {
+            // ACTION: Changed to { email: data.email, password: data.password }
             apiData = { email: data.email, password: data.password };
             apiUrl = API_BASE_URL + LOGIN_ENDPOINT;
         } else if (type === 'register') {
-            // Validate passwords match for registration
             if (data.password !== data.conPassword) {
                 toast.error("Passwords do not match");
                 setIsLoading(false);
                 return;
             }
-            // Prepare registration data (adjust fields based on your backend requirements)
+            // ACTION: Changed to { ..., email: data.email, ... }
             apiData = {
                 firstName: data.firstName,
                 lastName: data.lastName,
-                emailId: data.email, // Assuming backend uses emailId
+                email: data.email, // Changed from emailId
                 password: data.password
-                // Add any other required registration fields
             };
             apiUrl = API_BASE_URL + REGISTER_ENDPOINT;
         } else {
             console.error("Invalid form type specified:", type);
             toast.error("An unexpected error occurred.");
             setIsLoading(false);
-            return; // Should not happen
+            return;
         }
 
         try {
-            // --- Make the API Call ---
-            console.log(`Sending ${type} request to: ${apiUrl}`);
+            console.log(`Sending ${type} request to: ${apiUrl} with data:`, apiData);
             const response = await fetch(apiUrl, {
                 method: 'POST',
                 headers: {
@@ -94,41 +82,37 @@ const AuthForm = ({ type }: { type: string }) => {
                 body: JSON.stringify(apiData),
             });
 
-            // Attempt to parse JSON regardless of status code for potential error messages
             const result = await response.json();
 
-            // --- Handle Response ---
-            if (response.ok && result.token) { // Check for HTTP OK status and token in response
+            // Response Handling: if (response.ok && result.token) -> GOOD
+            if (response.ok && result.token) {
                 console.log(`${type} successful, token received.`);
-
-                // --- SET THE AUTH COOKIE ---
                 const cookieValue = result.token;
-                const daysToExpire = 7; // Example: 7-day expiry
+                const daysToExpire = 7;
                 const expires = new Date(Date.now() + daysToExpire * 864e5).toUTCString();
 
-                // Set the cookie (Ensure Secure flag is used in production with HTTPS)
-                document.cookie = `${AUTH_COOKIE_NAME}=${encodeURIComponent(cookieValue)}; expires=${expires}; path=/; SameSite=Lax`; // Add ; Secure in production
+                let cookieString = `${AUTH_COOKIE_NAME}=${encodeURIComponent(cookieValue)}; expires=${expires}; path=/; SameSite=Lax`;
+                if (process.env.NODE_ENV === 'production') {
+                    cookieString += '; Secure';
+                }
+                document.cookie = cookieString;
                 console.log(`Cookie '${AUTH_COOKIE_NAME}' set.`);
 
-                // Show success message
+                // Use the message from backend if available, otherwise a generic success message
                 toast.success(result.message || `${type === 'login' ? 'Login' : 'Registration'} successful!`);
-
-                // --- REDIRECT AFTER setting cookie ---
-                // Use replace to avoid login page in history stack
-                router.replace('/'); // Redirect to home page
+                console.log("Attempting to redirect to / ..."); 
+                router.replace('/');
 
             } else {
-                // Handle API errors (non-OK status or missing token)
-                console.error(`${type} failed:`, result);
-                toast.error(result.message || ` ${type === 'login' ? 'Login' : 'Registration'} failed. ${response.statusText}`);
+                console.error(`${type} failed with status ${response.status}:`, result);
+                const errorMessage = result.message || result.error || result.detail || `${type === 'login' ? 'Login' : 'Registration'} failed. Please check your details or try again.`;
+                toast.error(errorMessage);
             }
 
         } catch (error) {
-            // Handle network errors or exceptions during fetch/JSON parsing
             console.error(`Error during ${type}:`, error);
             toast.error("An error occurred while connecting to the server. Please try again.");
         } finally {
-            // Ensure loading state is turned off
             setIsLoading(false);
         }
     };
@@ -138,7 +122,7 @@ const AuthForm = ({ type }: { type: string }) => {
             <header className='flex flex-col gap-5 md:gap-8'>
                 <div className="cursor-pointer flex items-center gap-1">
                     <Image
-                        src="/icons/logo.png" // Ensure this path is correct relative to /public
+                        src="/icons/logo.png"
                         width={72}
                         height={72}
                         alt="Let's logo"
@@ -156,28 +140,26 @@ const AuthForm = ({ type }: { type: string }) => {
                 </div>
             </header>
 
-            {/* Form rendering */}
             <Form {...form}>
-                {/* Add novalidate to prevent default browser validation if using react-hook-form */}
                 <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-8" noValidate>
                     {type === 'register' && (
                         <div className="flex gap-4">
-                            {/* Ensure CustomInput forwards refs correctly if needed by react-hook-form */}
                             <CustomInput control={form.control} name="firstName" label="First Name" placeholder='Enter Your First Name' />
                             <CustomInput control={form.control} name="lastName" label="Last Name" placeholder='Enter Your Last Name' />
                         </div>
                     )}
+                    {/* Assuming your authformSchema and CustomInput use 'email' as the field name */}
                     <CustomInput control={form.control} name="email" label="Email" placeholder="Enter your email" />
                     <CustomInput control={form.control} name="password" label="Password" placeholder="Enter your password" />
                     {type === 'register' && (
                         <CustomInput control={form.control} name="conPassword" label="Confirm Password" placeholder="Re-enter your password" />
                     )}
                     <div className='flex flex-col gap-4'>
-                        <Button type="submit" className='form-btn w-full' disabled={isLoading}> {/* Disable button when loading */}
+                        <Button type="submit" className='form-btn w-full' disabled={isLoading}>
                             {isLoading ? (
-                                <div className='flex items-center justify-center gap-2'> {/* Center loading */}
+                                <div className='flex items-center justify-center gap-2'>
                                     <Loader2 size={20} className='animate-spin' />
-                                    <span>Processing...</span> {/* More generic loading text */}
+                                    <span>Processing...</span>
                                 </div>
                             ) : type === 'login' ? 'Log In' : 'Sign Up'}
                         </Button>
@@ -185,7 +167,7 @@ const AuthForm = ({ type }: { type: string }) => {
                 </form>
             </Form>
 
-            <footer className='flex justify-center gap-1 mt-4'> {/* Added margin-top */}
+            <footer className='flex justify-center gap-1 mt-4'>
                 <p className='text-14 font-normal text-gray-600'>
                     {type === 'login' ? 'Don\'t have an account?' : 'Already have an account?'}
                 </p>

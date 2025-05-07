@@ -49,7 +49,7 @@ public class Application {
 
                 // --- Assign Roles ---
                 // Give the test user both roles for flexibility during testing
-                user.setRoles(List.of("DRIVER", "PASSENGER"));
+                user.setRoles(List.of("DRIVER" ));
 
                 userRepository.save(user);
                 System.out.println("Test user '" + testUserEmail + "' inserted into MongoDB with roles: " + user.getRoles());
@@ -58,10 +58,10 @@ public class Application {
                 // Optional: You might want to ensure the existing test user has the desired roles
                 // during development for consistency after code changes.
                 userRepository.findByEmail(testUserEmail).ifPresent(u -> {
-                    if (!u.getRoles().containsAll(List.of("DRIVER", "PASSENGER"))) {
-                         u.setRoles(List.of("DRIVER", "PASSENGER"));
+                    if (!u.getRoles().containsAll(List.of("DRIVER"))) {
+                         u.setRoles(List.of("DRIVER"));
                          userRepository.save(u);
-                         System.out.println("ℹ Updated roles for test user '" + testUserEmail + "' to DRIVER, PASSENGER.");
+                         System.out.println("ℹ Updated roles for test user '" + testUserEmail + "' to DRIVER.");
                     }
                 });
             }
