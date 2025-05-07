@@ -2,9 +2,10 @@
 import type { Metadata } from "next";
 import { Inter } from "next/font/google";
 import { AuthProvider } from '@/lib/AuthContext';
-import { ToastContainer } from 'react-toastify'; // Or your preferred toast library
+import { WebSocketProvider } from '@/lib/WebSocketContext'; // <--- IMPORT
+import { ToastContainer } from 'react-toastify';
 import 'react-toastify/dist/ReactToastify.css';
-import "./globals.css"; // Your global styles
+import "./globals.css";
 
 const inter = Inter({ subsets: ["latin"] });
 
@@ -22,19 +23,21 @@ export default function RootLayout({
     <html lang="en">
       <body className={inter.className}>
         <AuthProvider>
-          {children}
-          <ToastContainer
-            position="top-right"
-            autoClose={3000}
-            hideProgressBar={false}
-            newestOnTop={false}
-            closeOnClick
-            rtl={false}
-            pauseOnFocusLoss
-            draggable
-            pauseOnHover
-            theme="light" // Or "dark" or "colored"
-          />
+          <WebSocketProvider> {/* <--- WRAP HERE */}
+            {children}
+            <ToastContainer
+              position="top-right"
+              autoClose={5000} // Increased duration for notifications
+              hideProgressBar={false}
+              newestOnTop
+              closeOnClick
+              rtl={false}
+              pauseOnFocusLoss
+              draggable
+              pauseOnHover
+              theme="light"
+            />
+          </WebSocketProvider>
         </AuthProvider>
       </body>
     </html>

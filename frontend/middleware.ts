@@ -2,74 +2,67 @@
 import { NextResponse } from 'next/server';
 import type { NextRequest } from 'next/server';
 
-// Define paths that are public EXCEPT the root path '/' initially
-// '/' will be handled specially based on auth state
-const publicPaths = ['/login', '/register', '/landing']; // Add /landing, remove /
-
-// Define the path for the login page
-const loginPath = '/login';
-// Define the internal path for the landing page component
-const landingPath = '/landing';
-// Define the root path which acts as the authenticated home
-const authenticatedHomePath = '/'; // Root path IS the dashboard
+// Get the cookie name from environment variables (ensure it's set in .env.local)
+const AUTH_COOKIE_NAME = process.env.NEXT_PUBLIC_AUTH_COOKIE_NAME || 'letsgo_auth_token'; // Fallback just in case
 
 export function middleware(request: NextRequest) {
-  const pathname = request.nextUrl.pathname;
+  const { pathname } = request.nextUrl;
+  const authToken = request.cookies.get(AUTH_COOKIE_NAME)?.value;
 
-  // Get Authentication Token from cookies
-  const cookieName = 'your_auth_token_cookie_name'; // <-- Replace with your actual cookie name!
-  const authTokenCookie = request.cookies.get(cookieName);
-  const token = authTokenCookie?.value;
+  // Define public paths that don't require authentication
+  const publicPaths = [
+    '/landing',
+    '/login',
+    '/register',
+    '/about',
+    '/contact',
+    '/privacy',
+    '/terms',
+    // Add any other public static paths like '/faq', '/blog', etc.
+    // Also include API routes that should be public if any are defined in `app/api/*` (unlikely for this setup)
+  ];
 
-  // Determine if the current path is one of the explicitly public paths (excluding root for now)
-  const isExplicitlyPublicPath = publicPaths.some(path => pathname.startsWith(path));
-
-  // --- Redirection & Rewrite Logic ---
-
-  // 1. Handle the Root Path ('/') Based on Auth State
-  if (pathname === authenticatedHomePath) {
-    if (!token) {
-      // NOT logged in, requesting root -> Rewrite to show Landing Page content
-      console.log(`Middleware: No token, requesting '/'. Rewriting to ${landingPath}.`);
-      // Rewrite keeps the URL as '/' but serves content from /landing
-      return NextResponse.rewrite(new URL(landingPath, request.url));
-    } else {
-      // Logged in, requesting root -> Allow to proceed (will hit app/(root)/page.tsx)
-      console.log(`Middleware: Token exists, allowing request to '/'.`);
-      return NextResponse.next(); // Let it go to the dashboard component
-    }
+  // Allow access to static assets (_next, public files like images/icons)
+  if (pathname.startsWith('/_next/') || pathname.startsWith('/icons/') || pathname.startsWith('/images/') || pathname.includes('.')) {
+    // The last condition pathname.includes('.') is a common heuristic for static files
+    return NextResponse.next();
   }
 
-  // 2. Handle Explicitly Public Paths (like /login, /register, /landing)
-  if (isExplicitlyPublicPath) {
-    if (token) {
-      // Logged in, accessing explicitly public page -> Redirect to Dashboard ('/')
-       console.log(`Middleware: Token exists, accessing public route ${pathname}. Redirecting to ${authenticatedHomePath}.`);
-       return NextResponse.redirect(new URL(authenticatedHomePath, request.url));
-    } else {
-      // Not logged in, accessing explicitly public page -> Allow
-      console.log(`Middleware: No token, allowing request to public path ${pathname}.`);
-      return NextResponse.next();
-    }
+
+  // Check if the current path is public
+  const isPublicPath = publicPaths.some(path => pathname.startsWith(path)) || pathname === '/'; // Assuming root '/' might be public (e.g. redirects to landing or login)
+
+  // If trying to access a protected route without a token, redirect to login
+  if (!isPublicPath && !authToken) {
+    const loginUrl = new URL('/login', request.url);
+    loginUrl.searchParams.set('redirect', pathname); // Save the intended path for redirect after login
+    return NextResponse.redirect(loginUrl);
   }
 
-  // 3. Handle Protected Routes (Any other path)
-  if (!token) {
-    // Not logged in, accessing protected route -> Redirect to Login
-    console.log(`Middleware: No token, accessing protected route ${pathname}. Redirecting to ${loginPath}.`);
-    const url = request.nextUrl.clone();
-    url.pathname = loginPath;
-    return NextResponse.redirect(url);
+  // If trying to access login/register page with a token, redirect to home/dashboard
+  if (authToken && (pathname === '/login' || pathname === '/register' || pathname === '/landing' || pathname === '/')) {
+    // Assuming '/' inside the (root) group is the main dashboard after login
+    return NextResponse.redirect(new URL('/dashboard-placeholder', request.url)); // Replace '/dashboard-placeholder' with your actual main authenticated route, e.g., just '/' if app/(root)/page.tsx handles it.
+                                                                              // If app/(root)/page.tsx is your intended destination, redirecting to '/' is fine.
+                                                                              // The current app/(root)/page.tsx handles role-based dashboards.
   }
 
-  // 4. If logged in and accessing any other path (already authenticated) -> Allow
-  console.log(`Middleware: Token exists, allowing request to protected path ${pathname}.`);
+  // Allow the request to proceed
   return NextResponse.next();
 }
 
-// Matcher Configuration (usually remains the same)
+// See "Matching Paths" below to learn more
 export const config = {
   matcher: [
-    '/((?!api|_next/static|_next/image|favicon.ico|icons|images).*)',
+    /*
+     * Match all request paths except for the ones starting with:
+     * - api (API routes that might have their own auth) - BUT we want to protect our app routes
+     * - _next/static (static files)
+     * - _next/image (image optimization files)
+     * - favicon.ico (favicon file)
+     * We want the middleware to run on almost all paths to check authentication.
+     */
+    // This matcher will apply the middleware to all paths except specific Next.js internal ones.
+    '/((?!api/auth/|_next/static|_next/image|favicon.ico).*)',
   ],
 };
