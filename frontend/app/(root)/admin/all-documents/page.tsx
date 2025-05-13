@@ -34,61 +34,83 @@ const fetchAllAdminDocumentsApi = async (
   if (!token) throw new Error("Authentication required.");
 
   const queryParams = new URLSearchParams();
-  if (filters.status !== 'ALL') queryParams.append('status', filters.status);
-  if (filters.userIdOrEmail) queryParams.append('userSearch', filters.userIdOrEmail); // Backend needs to handle 'userSearch' by ID or email
-  if (filters.documentType !== 'ALL') queryParams.append('documentType', filters.documentType);
-  queryParams.append('page', page.toString());
-  queryParams.append('size', size.toString());
+  if (filters.status && filters.status !== 'ALL') queryParams.append('status', filters.status);
+  // if (filters.userIdOrEmail) queryParams.append('userSearch', filters.userIdOrEmail); // Backend needs to handle 'userSearch' by ID or email
+  // if (filters.documentType !== 'ALL') queryParams.append('documentType', filters.documentType);
+  // queryParams.append('page', page.toString());
+  // queryParams.append('size', size.toString());
   // queryParams.append('sort', 'uploadDate,desc'); // Example sorting
 
-  const url = `${API_BASE_URL}/api/admin/documents/all?${queryParams.toString()}`; // Endpoint from brief was /api/users/admin/all
+  const url = `${API_BASE_URL}/api/documents/admin/all?${queryParams.toString()}`; // Endpoint from brief was /api/users/admin/all
   console.log(`API CALL: Fetching all admin documents with URL: ${url}`);
 
-  // const response = await fetch(url, {
-  //   headers: { 'Authorization': `Bearer ${token}` }
-  // });
-  // if (!response.ok) {
-  //   const errorResult = await response.json().catch(() => ({ message: "Failed to fetch documents." }));
-  //   throw new Error(errorResult.message);
-  // }
-  // return response.json(); // Expect PaginatedDocumentsResponse structure
+  const response = await fetch(url, {
+    method: 'GET',
+    headers: { 'Authorization': `Bearer ${token}` }
+  });
 
-  // Mock API response with pagination:
-  return new Promise(resolve => setTimeout(() => {
-    const allDocs: AdminDocumentView[] = [ /* ... (same mock data as in document-review page, but more for pagination testing) ... */
-        { id: 'doc_a_1', userId: 'user1', userFirstName: 'Alice', userLastName: 'S', userEmail: 'alice@example.com', documentType: 'DRIVING_LICENSE', fileName: 'alice_license.pdf', uploadDate: new Date(Date.now() - 86400000 * 10).toISOString(), status: 'VERIFIED' },
-        { id: 'doc_a_2', userId: 'user2', userFirstName: 'Bob', userLastName: 'J', userEmail: 'bob@example.com', documentType: 'VEHICLE_REGISTRATION', fileName: 'bob_reg.jpg', uploadDate: new Date(Date.now() - 86400000 * 9).toISOString(), status: 'PENDING_VERIFICATION' },
-        { id: 'doc_a_3', userId: 'user1', userFirstName: 'Alice', userLastName: 'S', userEmail: 'alice@example.com', documentType: 'INSURANCE_POLICY', fileName: 'alice_insurance.png', uploadDate: new Date(Date.now() - 86400000 * 8).toISOString(), status: 'REJECTED', rejectionReason: "Old policy" },
-        // Add 10-15 more mock documents to test pagination
-    ];
-    // Apply filters (simplified mock filtering)
-    let filteredDocs = allDocs;
-    if (filters.status !== 'ALL') filteredDocs = filteredDocs.filter(d => d.status === filters.status);
-    if (filters.documentType !== 'ALL') filteredDocs = filteredDocs.filter(d => d.documentType === filters.documentType);
-    if (filters.userIdOrEmail) filteredDocs = filteredDocs.filter(d => d.userId === filters.userIdOrEmail || d.userEmail.includes(filters.userIdOrEmail));
+  if(!response.ok) {
+    let errorMessage = `Failed to fetch documents. Status: ${response.status} ${response.statusText}`;
+    try {
+        const errorResult = await response.json();
+        errorMessage = errorResult.message || errorResult.error || errorMessage;
+    } catch (e) {
+        errorMessage = (await response.text()) || errorMessage;
+    }
+    console.error("API Error fetching documents:", errorMessage, response);
+    throw new Error(errorMessage);
+  }
 
-    const totalElements = filteredDocs.length;
-    const totalPages = Math.ceil(totalElements / size);
-    const startIndex = page * size;
-    const endIndex = startIndex + size;
-    const content = filteredDocs.slice(startIndex, endIndex);
+  const documentsArray: AdminDocumentView[] = await response.json();
 
-    resolve({
-      content,
-      totalPages,
-      totalElements,
-      currentPage: page,
-      size,
-    });
-  }, 1000));
+  if (!Array.isArray(documentsArray)) {
+    console.error("API Error: Expected an array of documents but received:", documentsArray);
+    throw new Error("Received invalid data structure from API (expected array).");
+  }
+  console.log("API Success: Received document array (length):", documentsArray.length);
+
+  const simulatedResponse: PaginatedDocumentsResponse = {
+    content: documentsArray,        // All fetched documents are the content
+    totalPages: 1,                  // Since everything is fetched, there's only 1 page
+    totalElements: documentsArray.length, // Total is the length of the fetched array
+    currentPage: 0,                 // We are effectively on page 0
+    size: documentsArray.length,    // The size of this "page" is all elements
+  };
+
+  console.log("API Success: Simulated Paginated Response for Documents", simulatedResponse);
+  return simulatedResponse;
 };
 
 // Reusing viewDocumentFile from DocumentReviewPage (or move to a shared util)
 const viewDocumentFile = (documentId: string, fileName: string, token: string | null) => {
     if (!token) { toast.error("Authentication required."); return; }
-    const fileUrl = `${API_BASE_URL}/api/admin/documents/${documentId}/file?token=${token}`; // Endpoint from brief was /api/users/admin/{documentId}/file
-    window.open(fileUrl, '_blank');
-    toast.info(`Attempting to open/download: ${fileName}`);
+    const fileUrl = `${API_BASE_URL}/api/documents/admin/${documentId}/file`; // Endpoint from brief was /api/users/admin/{documentId}/file
+    // window.open(fileUrl, '_blank');
+    // toast.info(`Attempting to open/download: ${fileName}`);
+    fetch(fileUrl, { headers: { 'Authorization': `Bearer ${token}` }})
+    .then(res => {
+      if (!res.ok) {
+        throw new Error(`Failed to download file: ${res.status} ${res.statusText}`);
+      }
+      return res.blob();
+    })
+    .then(blob => {
+      const blobUrl = window.URL.createObjectURL(blob);
+      const link = document.createElement('a');
+      link.href = blobUrl;
+      // Try to set download attribute, otherwise open in new tab
+      link.setAttribute('download', fileName || `document_${documentId}`); // Suggest filename
+      link.target = '_blank'; // Fallback to opening in new tab
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      window.URL.revokeObjectURL(blobUrl); // Clean up
+      toast.info(`Opening/downloading: ${fileName}`);
+    })
+    .catch(err => {
+      console.error("File view/download error:", err);
+      toast.error(err.message || `Could not retrieve file ${fileName}`);
+    });
 };
 // --- End TODO ---
 
@@ -113,7 +135,7 @@ export default function AllDocumentsAdminPage() {
   });
 
   const loadDocuments = useCallback(async (pageToLoad: number) => {
-    if (!token || user?.role !== 'ADMIN') {
+    if (!token || !user?.roles?.includes('ADMIN')) {
       if(!authLoading) setIsLoadingDocs(false);
       return;
     }
@@ -135,10 +157,10 @@ export default function AllDocumentsAdminPage() {
   }, [token, user, authLoading, filters]); // filters is a dependency now
 
   useEffect(() => {
-    if (!authLoading && user?.role === 'ADMIN') {
+    if (!authLoading && user?.roles?.includes('ADMIN')) {
       loadDocuments(currentPage); // Load current page when filters or user changes
-    } else if (!authLoading && user?.role !== 'ADMIN') {
-      toast.error("Access Denied. Administrator role required.");
+    } else if (!authLoading && !user?.roles?.includes('ADMIN')) {
+      toast.error("Access Denied to /all-documents. Administrator role required.");
       router.replace("/");
       setIsLoadingDocs(false);
     }
@@ -166,7 +188,7 @@ export default function AllDocumentsAdminPage() {
     return <div className="flex flex-grow items-center justify-center h-full"><Loader2 className="h-12 w-12 animate-spin text-primary" /></div>;
   }
 
-  if (!user || user.role !== 'ADMIN') {
+  if (!user || !user?.roles?.includes('ADMIN') ) {
     return (
         <div className="flex flex-col flex-grow items-center justify-center p-6 text-center">
             <ShieldAlert className="h-16 w-16 text-destructive mb-4" />

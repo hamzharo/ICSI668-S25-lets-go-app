@@ -152,5 +152,9 @@ export const useAuth = () => {
   if (context === undefined) {
     throw new Error('useAuth must be used within an AuthProvider');
   }
+  console.log("context from lib/AuthContext/useAuth(): ", context);
+  const { user, token, isLoading: authLoading } = context;
+  console.log("user from lib: ", user?.roles?.includes('ADMIN'));
+  console.log("authloading from lib: ", authLoading);
   return context;
 };

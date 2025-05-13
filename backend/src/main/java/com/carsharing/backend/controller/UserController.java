@@ -18,11 +18,16 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 import org.springframework.web.multipart.MultipartFile; // Import MultipartFile
 import org.springframework.web.bind.annotation.RequestParam; // Import RequestParam
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
+
 import com.carsharing.backend.service.UserService; // Import UserService
 import com.carsharing.backend.exception.FileStorageException; // Import FileStorageException
 import com.carsharing.backend.exception.ResourceNotFoundException;
 import com.carsharing.backend.model.User;
 import com.carsharing.backend.repository.UserRepository;
+import com.carsharing.backend.dto.UserDTO;
+
 import com.mongodb.lang.NonNull;
 
 import org.slf4j.Logger;
@@ -58,7 +63,7 @@ public class UserController {
             // Consider creating a UserDTO to avoid exposing passwords, even if hashed
             return new ResponseEntity<>(users, HttpStatus.OK);
         } catch (Exception e) {
-            // Log the exception e
+            log.error("Error fetching users with pagination: {}", e.getMessage(), e);
             return new ResponseEntity<>(null, HttpStatus.INTERNAL_SERVER_ERROR);
         }
     }

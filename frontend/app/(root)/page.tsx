@@ -12,6 +12,8 @@ import { UserRole } from '@/types'; // UserRole will be 'PASSENGER' | 'DRIVER' |
 
 export default function MainDashboardPage() {
   const { user, isLoading: authLoading } = useAuth();
+  console.log("user from root page: ", user);
+  console.log("authLoading from root page: ", authLoading);
   const router = useRouter();
 
   useEffect(() => {

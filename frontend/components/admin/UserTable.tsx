@@ -22,7 +22,11 @@ interface UserTableProps {
 
 // ... (Keep getRoleBadgeVariant and getStatusDisplay functions as before) ...
 const getRoleBadgeVariant = (role: AdminUserView['role']): "default" | "secondary" | "outline" => { /* ... */ return "outline" };
-const getStatusDisplay = (user: AdminUserView): { text: string; Icon: React.ElementType; colorClass: string; } => { /* ... */ return { text: "", Icon: UserCog, colorClass: ""} };
+const getStatusDisplay = (user: AdminUserView): { 
+  text: string; 
+  Icon: React.ElementType; 
+  colorClass: string; } => { 
+    /* ... */ return { text: user.driverStatus, Icon: UserCog, colorClass: ""} };
 
 
 const UserTable = ({ users, isLoading, onUserAction, isActionProcessing }: UserTableProps) => {
@@ -45,7 +49,7 @@ const UserTable = ({ users, isLoading, onUserAction, isActionProcessing }: UserT
 
   if (isLoading && users.length === 0) { /* ... Skeleton Table ... */ return ( <div className="rounded-md border dark:border-gray-700"> <Table> <TableHeader> <TableRow className="bg-gray-50 dark:bg-gray-800/50"> <TableHead className="px-4 py-3">User</TableHead> <TableHead className="px-4 py-3">Role</TableHead> <TableHead className="px-4 py-3">Status</TableHead> <TableHead className="px-4 py-3">Joined</TableHead> <TableHead className="text-right px-4 py-3">Actions</TableHead> </TableRow> </TableHeader> <TableBody>{renderSkeletons(10)}</TableBody> </Table> </div> ); }
   if (!isLoading && users.length === 0) { /* ... No Users Found ... */ return <Table><TableCaption>No users found matching your criteria.</TableCaption></Table>; }
-
+  console.log("USERS ARE: ", users);
   return (
     <>
       <div className="rounded-md border dark:border-gray-700">
@@ -56,7 +60,6 @@ const UserTable = ({ users, isLoading, onUserAction, isActionProcessing }: UserT
               <TableHead className="w-[300px] px-4 py-3">User</TableHead>
               <TableHead className="w-[120px] px-4 py-3">Role</TableHead>
               <TableHead className="w-[200px] px-4 py-3">Status</TableHead>
-              <TableHead className="px-4 py-3">Joined Date</TableHead>
               <TableHead className="text-right w-[100px] px-4 py-3">Actions</TableHead>
             </TableRow>
           </TableHeader>
@@ -71,12 +74,11 @@ const UserTable = ({ users, isLoading, onUserAction, isActionProcessing }: UserT
               return (
                 <TableRow key={user.id} className="hover:bg-gray-50/50 dark:hover:bg-gray-700/30">
                   <TableCell className="font-medium px-4 py-3">
-                    {/* ... User display ... */}
-                    <div> {user.firstName} {user.lastName} <span className="block text-xs text-muted-foreground truncate" title={user.emailId}>{user.emailId}</span> <span className="block text-xs text-muted-foreground">ID: {user.id}</span> </div>
+                    <div> {user.name} <span className="block text-xs text-muted-foreground truncate" title={user.email}>{user.email}</span> <span className="block text-xs text-muted-foreground">ID: {user.id}</span> </div>
                   </TableCell>
                   <TableCell className="px-4 py-3">
                     <Badge variant={getRoleBadgeVariant(user.role)} className="capitalize text-xs">
-                      {user.role.toLowerCase()}
+                      {user.roles}
                     </Badge>
                   </TableCell>
                   <TableCell className="px-4 py-3">
@@ -84,9 +86,6 @@ const UserTable = ({ users, isLoading, onUserAction, isActionProcessing }: UserT
                       <StatusIcon className="mr-1.5 h-4 w-4" />
                       {statusText}
                     </div>
-                  </TableCell>
-                  <TableCell className="px-4 py-3 text-xs text-muted-foreground">
-                    {format(new Date(user.createdAt), "dd MMM yyyy")}
                   </TableCell>
                   <TableCell className="text-right px-4 py-3">
                     <DropdownMenu>

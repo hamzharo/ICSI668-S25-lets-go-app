@@ -11,6 +11,7 @@ import org.springframework.util.StringUtils;
 
 import com.carsharing.backend.model.DocumentInfo; // Import DocumentInfo
 import com.carsharing.backend.model.DocumentStatus;
+import com.carsharing.backend.dto.DocumentInfoDTO;
 
 import org.springframework.web.multipart.MultipartFile; // Import MultipartFile
 import java.time.LocalDateTime; // Import LocalDateTime
@@ -50,6 +51,9 @@ public class UserService { // Or DriverApplicationService
 
     @Autowired // Inject FileStorageService
     private FileStorageService fileStorageService;
+
+    @Autowired
+    private DocumentService documentService;
     
     // --- Driver Application Logic ---
 
@@ -125,6 +129,7 @@ public class UserService { // Or DriverApplicationService
         }
         if (!currentRoles.contains(ROLE_DRIVER)) {
             currentRoles.add(ROLE_DRIVER);
+            currentRoles.remove(ROLE_PASSENGER);
             user.setRoles(currentRoles);
             log.info("Added DRIVER role to user ID: {}", userIdToApprove);
         } else {

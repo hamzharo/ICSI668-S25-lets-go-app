@@ -79,7 +79,7 @@ const DocumentReviewTable = ({ documents, isLoading, onUpdateStatus, onViewFile 
   if (isLoading && documents.length === 0) { // Show loader only if no documents are displayed yet
     return (
       <div className="text-center py-10">
-        <Loader2 className="h-8 w-8 animate-spin mx-auto text-muted-foreground" />
+        {/* <Loader2 className="h-8 w-8 animate-spin mx-auto text-muted-foreground" /> */}
         <p className="mt-2 text-muted-foreground">Loading documents...</p>
       </div>
     );
@@ -114,8 +114,7 @@ const DocumentReviewTable = ({ documents, isLoading, onUpdateStatus, onViewFile 
                   <div className="flex items-center">
                     <UserCircle className="h-5 w-5 mr-2 text-muted-foreground" />
                     <div>
-                        {doc.userFirstName} {doc.userLastName}
-                        <span className="block text-xs text-muted-foreground">{doc.userEmail}</span>
+                        {doc.userId}
                     </div>
                   </div>
                 </TableCell>
@@ -125,11 +124,12 @@ const DocumentReviewTable = ({ documents, isLoading, onUpdateStatus, onViewFile 
                         {doc.documentType.replace('_', ' ').split(' ').map(word => word.charAt(0).toUpperCase() + word.slice(1).toLowerCase()).join(' ')}
                     </div>
                 </TableCell>
-                <TableCell className="px-4 py-3 truncate max-w-xs">{doc.fileName}</TableCell>
+                <TableCell className="px-4 py-3 truncate max-w-xs">{doc.originalFilename}</TableCell>
                 <TableCell className="px-4 py-3">
                     <div className="flex items-center text-xs text-muted-foreground">
                         <CalendarIcon className="h-4 w-4 mr-1.5"/>
-                        {format(new Date(doc.uploadDate), "dd MMM yyyy, HH:mm")}
+                        {/* {format(new Date(doc.uploadDate), "dd MMM yyyy, HH:mm")} */}
+                        {doc.uploadedAt}
                     </div>
                 </TableCell>
                 <TableCell className="px-4 py-3">

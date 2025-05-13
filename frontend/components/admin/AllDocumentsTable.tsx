@@ -84,6 +84,8 @@ const AllDocumentsTable = ({ documents, isLoading, onViewFile }: AllDocumentsTab
     );
   }
 
+  console.log(documents);
+
   return (
     <div className="rounded-md border dark:border-gray-700">
       <Table>
@@ -117,11 +119,12 @@ const AllDocumentsTable = ({ documents, isLoading, onViewFile }: AllDocumentsTab
                     {doc.documentType.replace('_', ' ').split(' ').map(word => word.charAt(0).toUpperCase() + word.slice(1).toLowerCase()).join(' ')}
                 </div>
               </TableCell>
-              <TableCell className="px-4 py-3 truncate max-w-xs" title={doc.fileName}>{doc.fileName}</TableCell>
+              <TableCell className="px-4 py-3 truncate max-w-xs" title={doc.originalFilename}>{doc.originalFilename}</TableCell>
               <TableCell className="px-4 py-3">
                   <div className="flex items-center text-xs text-muted-foreground">
                       <CalendarIcon className="h-4 w-4 mr-1.5 flex-shrink-0"/>
-                      {format(new Date(doc.uploadDate), "dd MMM yyyy, HH:mm")}
+                      {/* {format(new Date(doc.uploadDate), "dd MMM yyyy, HH:mm")} */}
+                      {doc.uploadedAt}
                   </div>
               </TableCell>
               <TableCell className="px-4 py-3">

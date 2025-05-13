@@ -49,7 +49,7 @@ const AdminDashboard = ({ user }: AdminDashboardProps) => {
             {/* <p className="text-sm font-semibold">Pending Documents: <span className="text-orange-600">{pendingDocumentsCount || 'Loading...'}</span></p> */}
           </CardContent>
           <CardFooter>
-            <Link href="/admin/document-review" passHref legacyBehavior>
+            <Link href="./admin/document-review" passHref legacyBehavior>
               <Button size="lg" className="w-full bg-orange-500 hover:bg-orange-600 text-white">
                 <FileCheck2 className="mr-2 h-5 w-5" /> Go to Verification Queue
               </Button>
@@ -74,7 +74,7 @@ const AdminDashboard = ({ user }: AdminDashboardProps) => {
             </p>
           </CardContent>
           <CardFooter>
-            <Link href="/admin/all-documents" passHref legacyBehavior>
+            <Link href="./admin/all-documents" passHref legacyBehavior>
               <Button size="lg" className="w-full bg-blue-600 hover:bg-blue-700 text-white">
                 <Files className="mr-2 h-5 w-5" /> Browse All Documents
               </Button>
@@ -99,7 +99,7 @@ const AdminDashboard = ({ user }: AdminDashboardProps) => {
             </p>
           </CardContent>
           <CardFooter>
-            <Link href="/admin/users" passHref legacyBehavior>
+            <Link href="./admin/users" passHref legacyBehavior>
               <Button size="lg" className="w-full bg-indigo-600 hover:bg-indigo-700 text-white">
                 <Users className="mr-2 h-5 w-5" /> Manage Users
               </Button>

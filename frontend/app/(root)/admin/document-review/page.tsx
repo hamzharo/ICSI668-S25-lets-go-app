@@ -16,77 +16,141 @@ import { useRouter } from 'next/navigation';
 const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8080';
 
 // --- TODO: Replace with actual API service calls ---
-const fetchAdminDocumentsApi = async (filterStatus: DocumentStatus | 'ALL', token: string | null): Promise<AdminDocumentView[]> => {
+const fetchAdminDocumentsApi = async (filterStatus: DocumentStatus | 'ALL', token: string | null): 
+Promise<AdminDocumentView[]> => {
   if (!token) throw new Error("Authentication required.");
-  let url = `${API_BASE_URL}/api/admin/documents/all`; // Endpoint from brief was /api/users/admin/all
-  if (filterStatus !== 'ALL') {
-    url += `?status=${filterStatus}`;
-  }
-  console.log(`API CALL: Fetching admin documents with URL: ${url}`);
-  // const response = await fetch(url, {
-  //   headers: { 'Authorization': `Bearer ${token}` }
-  // });
-  // if (!response.ok) {
-  //   const errorResult = await response.json().catch(() => ({ message: "Failed to fetch documents." }));
-  //   throw new Error(errorResult.message);
-  // }
-  // return response.json();
+  let url = `${API_BASE_URL}/api/documents/admin/all`;
+  const queryParams = new URLSearchParams();
 
-  // Mock API response:
-  return new Promise(resolve => setTimeout(() => {
-    const allDocs: AdminDocumentView[] = [
-      { id: 'doc_admin_1', userId: 'user1', userFirstName: 'Alice', userLastName: 'Smith', userEmail: 'alice@example.com', documentType: 'DRIVING_LICENSE', fileName: 'alice_license.pdf', uploadDate: new Date(Date.now() - 86400000 * 2).toISOString(), status: 'PENDING_VERIFICATION' },
-      { id: 'doc_admin_2', userId: 'user2', userFirstName: 'Bob', userLastName: 'Johnson', userEmail: 'bob@example.com', documentType: 'VEHICLE_REGISTRATION', fileName: 'bob_reg.jpg', uploadDate: new Date(Date.now() - 86400000 * 1).toISOString(), status: 'PENDING_VERIFICATION' },
-      { id: 'doc_admin_3', userId: 'user3', userFirstName: 'Carol', userLastName: 'Williams', userEmail: 'carol@example.com', documentType: 'DRIVING_LICENSE', fileName: 'carol_license.png', uploadDate: new Date(Date.now() - 86400000 * 5).toISOString(), status: 'VERIFIED' },
-      { id: 'doc_admin_4', userId: 'user4', userFirstName: 'David', userLastName: 'Brown', userEmail: 'dave@example.com', documentType: 'INSURANCE_POLICY', fileName: 'david_insurance.pdf', uploadDate: new Date(Date.now() - 86400000 * 3).toISOString(), status: 'REJECTED', rejectionReason: 'Document expired' },
-    ];
-    if (filterStatus === 'ALL') resolve(allDocs);
-    else resolve(allDocs.filter(doc => doc.status === filterStatus));
-  }, 1000));
+  if (filterStatus !== 'ALL') {
+    queryParams.append('status', filterStatus);
+  }
+
+  const queryString = queryParams.toString();
+  if(queryString){
+    url += `?${queryString}`
+  }
+
+  console.log(`API CALL: Fetching admin documents with URL: ${url}`);
+
+  const response = await fetch(url, {
+    headers: { 'Authorization': `Bearer ${token}` }
+  });
+
+  if (!response.ok) {
+    let errorMessage = `Failed to fetch documents. Status: ${response.status} ${response.statusText}`;
+    let errorBodyText = '';
+    try {
+        errorBodyText = await response.text();
+        const errorResult = JSON.parse(errorBodyText);
+        errorMessage = errorResult.message || errorResult.error || errorMessage;
+    } catch (e) {
+        if (errorBodyText) {
+            errorMessage = `${errorMessage} - Response: ${errorBodyText.substring(0, 200)}`;
+        }
+        console.warn("Response body was not valid JSON or read failed.", e);
+    }
+    console.error("API Error fetching documents:", errorMessage, response);
+    throw new Error(errorMessage);
+  }
+
+  const documentsArray: AdminDocumentView[] = await response.json();
+
+  if (!Array.isArray(documentsArray)) {
+    console.error("API Error: Expected an array of documents but received:", documentsArray);
+    throw new Error("Received invalid data structure from API (expected array).");
+  }
+
+  console.log(`API Success: Received ${documentsArray.length} documents.`);
+  return documentsArray;
 };
 
 const updateDocumentStatusApi = async (documentId: string, payload: DocumentStatusUpdatePayload, token: string | null): Promise<AdminDocumentView> => { // Expect updated document
   if (!token) throw new Error("Authentication required.");
-  console.log(`API CALL: Updating document ${documentId} status to ${payload.newStatus}`);
+
+  console.log(`API CALL: Updating document ${documentId} status to ${payload.newStatus}, Reason: ${payload.rejectionReason}`);
+
+  // --- FIX: Construct URL and Query Params correctly ---
+  // Backend Controller base: /api/documents, Endpoint: /admin/{documentId}/status
+  const url = `${API_BASE_URL}/api/documents/admin/${documentId}/status`;
   const queryParams = new URLSearchParams({ newStatus: payload.newStatus });
   if (payload.rejectionReason) {
     queryParams.append('rejectionReason', payload.rejectionReason);
   }
-  // const response = await fetch(`${API_BASE_URL}/api/admin/documents/${documentId}/status?${queryParams.toString()}`, { // Endpoint from brief was /api/users/admin/{documentId}/status
-  //   method: 'PUT',
-  //   headers: { 'Authorization': `Bearer ${token}` }
-  // });
-  // if (!response.ok) {
-  //   const errorResult = await response.json().catch(() => ({ message: "Failed to update document status." }));
-  //   throw new Error(errorResult.message);
-  // }
-  // return response.json();
 
-  // Mock API response:
-  return new Promise(resolve => setTimeout(() => {
-    // This should ideally return the updated document object from the backend
-    resolve({ id: documentId, status: payload.newStatus } as AdminDocumentView); // Simplified mock
-  }, 800));
+  // --- FIX: Make the actual fetch call ---
+  const response = await fetch(`${url}?${queryParams.toString()}`, {
+    method: 'PUT', // Method is PUT
+    headers: {
+        'Authorization': `Bearer ${token}`,
+        // Content-Type might not be needed for PUT with query params, but can be added if required by backend
+        // 'Content-Type': 'application/json' // Only if sending a JSON body
+    }
+    // No body needed as data is in query params per backend code
+  });
+
+  // --- FIX: Improved error handling ---
+   if (!response.ok) {
+    let errorMessage = `Failed to update document status. Status: ${response.status} ${response.statusText}`;
+    let errorBodyText = '';
+    try {
+        errorBodyText = await response.text();
+        const errorResult = JSON.parse(errorBodyText);
+        errorMessage = errorResult.message || errorResult.error || errorMessage;
+    } catch (e) {
+        if (errorBodyText) {
+            errorMessage = `${errorMessage} - Response: ${errorBodyText.substring(0, 200)}`;
+        }
+         console.warn("Response body was not valid JSON or read failed.", e);
+    }
+    console.error("API Error updating document status:", errorMessage, response);
+    throw new Error(errorMessage);
+  }
+
+  // --- FIX: Parse and return the updated document ---
+  const updatedDocument: AdminDocumentView = await response.json();
+  console.log(`API Success: Document ${documentId} status updated.`);
+  return updatedDocument;
 };
 
-// Function to trigger file download/view (handled by opening a new tab to the backend URL)
+// Function to trigger file download/view
 const viewDocumentFile = (documentId: string, fileName: string, token: string | null) => {
-    if (!token) {
-        toast.error("Authentication required to view file.");
-        return;
-    }
-    // Endpoint from brief was /api/users/admin/{documentId}/file
-    const fileUrl = `${API_BASE_URL}/api/admin/documents/${documentId}/file?token=${token}`; // Pass token if backend needs it for direct access
-    // Or, if backend uses cookie auth and is on same domain, token might not be needed in URL
-    // Forcing download with a specific name:
-    // const link = document.createElement('a');
-    // link.href = fileUrl;
-    // link.setAttribute('download', fileName); // Or let the browser decide based on Content-Disposition
-    // document.body.appendChild(link);
-    // link.click();
-    // document.body.removeChild(link);
-    window.open(fileUrl, '_blank'); // Simpler: opens in new tab, browser handles download/display
-    toast.info(`Attempting to open/download: ${fileName}`);
+  if (!token) {
+      toast.error("Authentication required to view file.");
+      return;
+  }
+  // --- FIX: Ensure URL is correct ---
+  // Backend Controller base: /api/documents, Endpoint: /admin/{documentId}/file
+  const fileUrl = `${API_BASE_URL}/api/documents/admin/${documentId}/file`;
+
+  // --- FIX: Use the fetch/blob method ---
+  fetch(fileUrl, { headers: { 'Authorization': `Bearer ${token}` }})
+    .then(res => {
+      if (!res.ok) {
+         // Try to get error message from headers or fallback
+         const errorMsg = res.headers.get('X-Error-Message') || `Failed to download file: ${res.status} ${res.statusText}`;
+        throw new Error(errorMsg);
+      }
+      // Check content type if needed, otherwise assume blob is okay
+      // const contentType = res.headers.get('content-type');
+      return res.blob();
+    })
+    .then(blob => {
+      const blobUrl = window.URL.createObjectURL(blob);
+      const link = document.createElement('a');
+      link.href = blobUrl;
+      link.setAttribute('download', fileName || `document_${documentId}`);
+      link.target = '_blank';
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      window.URL.revokeObjectURL(blobUrl); // Clean up memory
+      toast.info(`Opening/downloading: ${fileName}`);
+    })
+    .catch(err => {
+      console.error("File view/download error:", err);
+      toast.error(err.message || `Could not retrieve file ${fileName}`);
+    });
 };
 // --- End TODO ---
 
@@ -109,7 +173,7 @@ export default function DocumentReviewPage() {
   const [statusFilter, setStatusFilter] = useState<DocumentStatus | 'ALL'>('PENDING_VERIFICATION'); // Default filter
 
   const loadDocuments = useCallback(async (filter: DocumentStatus | 'ALL') => {
-    if (!token || user?.role !== 'ADMIN') {
+    if (!token || !user?.roles?.includes('ADMIN')) {
       if (!authLoading) setIsLoadingDocs(false);
       return;
     }
@@ -128,10 +192,10 @@ export default function DocumentReviewPage() {
   }, [token, user, authLoading]);
 
   useEffect(() => {
-    if (!authLoading && user?.role === 'ADMIN') {
+    if (!authLoading && user?.roles?.includes('ADMIN')) {
       loadDocuments(statusFilter);
-    } else if (!authLoading && user?.role !== 'ADMIN') {
-      toast.error("Access Denied. Administrator role required.");
+    } else if (!authLoading && !user?.roles?.includes('ADMIN')) {
+      toast.error("Access Denied to /document-review. Administrator role required.");
       router.replace("/"); // Redirect non-admins
       setIsLoadingDocs(false);
     }
@@ -152,7 +216,7 @@ export default function DocumentReviewPage() {
     return <div className="flex flex-grow items-center justify-center h-full"><Loader2 className="h-12 w-12 animate-spin text-primary" /></div>;
   }
 
-  if (!user || user.role !== 'ADMIN') {
+  if (!user || !user.roles.includes('ADMIN')) {
      // Fallback display if redirect hasn't occurred
     return (
         <div className="flex flex-col flex-grow items-center justify-center p-6 text-center">

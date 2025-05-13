@@ -125,7 +125,7 @@ const DriverDashboard = ({ user }: DriverDashboardProps) => {
         </Card>
       </div>
 
-      {/* Optional: Earnings Overview Snippet or other info */}
+      Optional: Earnings Overview Snippet or other info
       {/* {isProfileApproved && (
         <div className="mt-8">
             <Card>

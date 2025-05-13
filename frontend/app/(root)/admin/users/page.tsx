@@ -20,7 +20,83 @@ const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8080';
 interface PaginatedUsersResponse { /* ... (as defined before) ... */ content: AdminUserView[]; totalPages: number; totalElements: number; currentPage: number; size: number; }
 
 // --- TODO: Replace/Update API service calls ---
-const fetchAdminUsersApi = async ( /* ... */ ): Promise<PaginatedUsersResponse> => { /* ... (as defined before) ... */ return new Promise(res => res({content:[], totalPages:0, totalElements:0,currentPage:0,size:0}))};
+const fetchAdminUsersApi = async (
+  filters: UserFilterValues,
+  page: number, // Note: Backend now ignores this
+  size: number, // Note: Backend now ignores this
+  token: string | null
+): Promise<PaginatedUsersResponse> => {
+  // Check for token
+  if (!token) {
+    throw new Error("Authentication token is missing.");
+  }
+
+  console.log("fetchAdminUsersApi received - page:", page, "size:", size);
+
+  // Construct URL - Backend will ignore pagination/filter params now, but we can still send them
+  // Or simplify the URL if you know the backend ignores them entirely:
+  // const url = `${API_BASE_URL}/api/users`;
+  const params = new URLSearchParams(); // Start fresh or add only params the backend *might* use
+  // Add filters IF your reverted backend still handles them (unlikely based on the code)
+  // if (filters.searchTerm) params.append('searchTerm', filters.searchTerm);
+  // if (filters.role && filters.role !== 'ALL') params.append('role', filters.role);
+  // if (filters.status && filters.status !== 'ALL') params.append('status', filters.status);
+
+  // Use a simpler URL if backend ignores all params for this endpoint now
+  const url = `${API_BASE_URL}/api/users` + (params.toString() ? `?${params.toString()}` : '');
+  console.log(`API CALL: Fetching users from ${url}`);
+
+  // Make API call
+  const response = await fetch(url, {
+    method: 'GET',
+    headers: {
+      'Authorization': `Bearer ${token}`,
+      // 'Content-Type': 'application/json', // Not strictly needed for GET
+    },
+  });
+
+  // For unsuccessful responses
+  if (!response.ok) {
+    let errorMessage = `Failed to fetch users. Status: ${response.status}`;
+    try {
+      const errorBody = await response.json();
+      errorMessage = errorBody.message || errorBody.error || errorMessage;
+    } catch (e) {
+      // Ignore if error response is not JSON
+    }
+    console.error("API Error:", errorMessage, response);
+    throw new Error(errorMessage);
+  }
+
+  // --- MODIFICATION START ---
+  // Parse successful JSON response - EXPECT AN ARRAY NOW
+  const userArray: AdminUserView[] = await response.json();
+
+  // Validate if it's an array
+  if (!Array.isArray(userArray)) {
+    console.error("API Error: Expected an array but received non-array:", userArray);
+    throw new Error("Received invalid data structure from API (expected array).");
+  }
+
+  console.log("API Success: Received user array (length):", userArray.length);
+
+  // Manually construct the PaginatedUsersResponse object
+  const simulatedResponse: PaginatedUsersResponse = {
+    content: userArray, // The full list is the content
+    totalPages: 1, // Since we got everything, there's only 1 "page"
+    totalElements: userArray.length, // Total elements is the array length
+    currentPage: 0, // We are on the first (and only) page
+    size: userArray.length, // The size of this "page" is the full array length
+  };
+
+  // --- MODIFICATION END ---
+
+  // No need for the old validation check anymore
+  // if (!data || typeof data.content === 'undefined' || ...)
+
+  console.log("API Success: Simulated Paginated Response", simulatedResponse);
+  return simulatedResponse; // Return the constructed object
+};
 
 // New API call for updating user role
 const updateUserRoleApi = async (userId: string, newRole: UserRole, token: string | null): Promise<AdminUserView> => {
@@ -69,8 +145,40 @@ export default function ManageUsersAdminPage() {
   // Key: `userId_actionType`, Value: boolean
   const [processingUserActions, setProcessingUserActions] = useState<Record<string, boolean>>({});
 
-  const loadUsers = useCallback(async (pageToLoad: number) => { /* ... (same as before) ... */ if (!token || user?.role !== 'ADMIN') { setIsLoadingData(false); return; } setIsLoadingData(true); setError(null); try { const response = await fetchAdminUsersApi(filters, pageToLoad, itemsPerPage, token); setUsersList(response.content); setTotalPages(response.totalPages); setCurrentPage(response.currentPage); setTotalElements(response.totalElements); } catch (err: any) { setError(err.message); toast.error(err.message); } finally { setIsLoadingData(false); } }, [token, user, authLoading, filters]);
-  useEffect(() => { if (!authLoading && user?.role === 'ADMIN') { loadUsers(currentPage); } else if (!authLoading && user?.role !== 'ADMIN') { router.replace("/"); } }, [authLoading, user, filters, loadUsers, router, currentPage]);
+  const loadUsers = useCallback(async (pageToLoad: number) => { 
+    console.log("loadUsers called with pageToLoad:", pageToLoad);
+
+    if (!token || !user?.roles?.includes('ADMIN')) { 
+      setIsLoadingData(false); return; 
+    } 
+    
+    setIsLoadingData(true); 
+    setError(null); 
+    try { 
+      const response = await fetchAdminUsersApi(filters, pageToLoad, itemsPerPage, token); 
+      setUsersList(response.content); setTotalPages(response.totalPages); 
+      setCurrentPage(response.currentPage); setTotalElements(response.totalElements); 
+    } catch (err: any) { 
+      console.error("CAUGHT ERROR OBJECT:", err); // Log the whole error object
+      console.error("CAUGHT ERROR MESSAGE TYPE:", typeof err?.message); // What is the type?
+      console.error("CAUGHT ERROR MESSAGE VALUE:", err?.message); // What is the value?
+
+      const message = err?.message || "An unknown error occurred loading users."; // Safer way to get message
+      setError(err.message); 
+      toast.error(err.message); 
+    } finally { 
+      setIsLoadingData(false); 
+    } 
+  }, [token, user, authLoading, filters]);
+
+  useEffect(() => { 
+    if (!authLoading && user?.roles?.includes('ADMIN')) { 
+      loadUsers(currentPage); 
+    } 
+    else if (!authLoading && !user?.roles?.includes('ADMIN')) { 
+      router.replace("/"); 
+    } 
+  }, [authLoading, user, filters, loadUsers, router, currentPage]);
   const handleFilterChange = (newFilters: UserFilterValues) => { setCurrentPage(0); setFilters(newFilters); };
   const handlePageChange = (newPage: number) => { if (newPage >= 0 && newPage < totalPages) setCurrentPage(newPage); };
 
@@ -105,7 +213,7 @@ export default function ManageUsersAdminPage() {
 
 
   if (authLoading || (!user && isLoadingData && usersList.length === 0)) { /* ... Loader ... */ return <div className="flex flex-grow items-center justify-center h-full"><Loader2 className="h-12 w-12 animate-spin text-primary" /></div>; }
-  if (!user || user.role !== 'ADMIN') { /* ... Access Denied ... */ return ( <div className="flex flex-col flex-grow items-center justify-center p-6 text-center"> <ShieldAlert className="h-16 w-16 text-destructive mb-4" /> <h2 className="text-2xl font-semibold text-destructive mb-2">Access Denied</h2> <p className="text-muted-foreground max-w-md">Admin access required.</p> </div> ); }
+  if (!user || !user.roles?.includes('ADMIN')) { /* ... Access Denied ... */ return ( <div className="flex flex-col flex-grow items-center justify-center p-6 text-center"> <ShieldAlert className="h-16 w-16 text-destructive mb-4" /> <h2 className="text-2xl font-semibold text-destructive mb-2">Access Denied</h2> <p className="text-muted-foreground max-w-md">Admin access required.</p> </div> ); }
   if (error && !isLoadingData) { /* ... Error display ... */  return ( <div className="flex flex-col flex-grow items-center justify-center p-6 text-center"> <Frown className="h-16 w-16 text-destructive mb-4" /> <h2 className="text-2xl font-semibold text-destructive mb-2">Error Loading Users</h2> <p className="text-muted-foreground max-w-md mb-6">{error}</p> <Button onClick={() => loadUsers(currentPage)} variant="outline">Try Again</Button> </div> );}
 
   return (

@@ -90,9 +90,9 @@ const DocumentFilters = ({ initialFilters, onFilterChange }: DocumentFiltersProp
             </SelectTrigger>
             <SelectContent>
               <SelectItem value="ALL">All Types</SelectItem>
-              {DOCUMENT_TYPES.map(dt => (
-                <SelectItem key={dt.value} value={dt.value}>{dt.label}</SelectItem>
-              ))}
+              <SelectItem key={DOCUMENT_TYPES.DRIVING_LICENSE} value={DOCUMENT_TYPES.DRIVING_LICENSE}>DRIVING LICENSE</SelectItem>
+              <SelectItem key={DOCUMENT_TYPES.INSURANCE_POLICY} value={DOCUMENT_TYPES.INSURANCE_POLICY}>INSURANCE POLICY</SelectItem>
+              <SelectItem key={DOCUMENT_TYPES.VEHICLE_REGISTRATION} value={DOCUMENT_TYPES.VEHICLE_REGISTRATION}>VEHICLE REGISTRATION</SelectItem>
             </SelectContent>
           </Select>
         </div>
