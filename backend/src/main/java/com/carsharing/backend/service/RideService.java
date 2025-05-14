@@ -64,6 +64,8 @@ public class RideService {
         newRide.setDriverId(driver.getId());
         newRide.setDepartureCity(rideCreationDTO.getDepartureCity());
         newRide.setDestinationCity(rideCreationDTO.getDestinationCity());
+        newRide.setDepartureState(rideCreationDTO.getDepartureState());
+        newRide.setDestinationState(rideCreationDTO.getDestinationState());
         newRide.setDepartureAddress(rideCreationDTO.getDepartureAddress());
         newRide.setDestinationAddress(rideCreationDTO.getDestinationAddress());
         newRide.setDepartureTime(rideCreationDTO.getDepartureTime());
@@ -89,13 +91,16 @@ public class RideService {
         return convertToDto(savedRide);
     }
 
-    public List<RideDTO> searchRides(String departureCity, String destinationCity, LocalDateTime earliestDepartureTime) {
+    public List<RideDTO> searchRides(String departureCity, String destinationCity, String departureSate, String destinationState, LocalDateTime earliestDepartureTime) {
         LocalDateTime searchTime = (earliestDepartureTime != null) ? earliestDepartureTime : LocalDateTime.now();
-        log.info("Searching for rides from '{}' to '{}' departing after '{}'", departureCity, destinationCity, searchTime);
+        log.info("Searching for rides from '{}' to '{}' departing after '{}'", departureCity, destinationCity, departureSate, destinationState, searchTime);
 
         List<Ride> results = rideRepository.findByDepartureCityAndDestinationCityAndStatusAndDepartureTimeAfterAndAvailableSeatsGreaterThan(
                 departureCity,
                 destinationCity,
+                departureSate,
+                destinationState,
+
                 RideStatus.SCHEDULED, // Only search for scheduled rides
                 searchTime,
                 0
@@ -250,6 +255,14 @@ public class RideService {
             ride.setDestinationCity(rideUpdateDTO.getDestinationCity());
             significantChange = true;
         }
+        if (rideUpdateDTO.getDepartureState() != null && !Objects.equals(rideUpdateDTO.getDepartureState(),ride.getDepartureState())) {
+            ride.setDepartureState(currentUserEmail);(rideUpdateDTO.getDepartureState());
+            significantChange = true;
+        }
+        if (rideUpdateDTO.getDestinationState() != null && !Objects.equals(rideUpdateDTO.getDestinationState(),ride.getDestinationState())) {
+            ride.setDestinationState(rideUpdateDTO.getDestinationState());
+            significantChange = true;
+        }
         if (rideUpdateDTO.getDepartureAddress() != null) {
             ride.setDepartureAddress(rideUpdateDTO.getDepartureAddress());
         }
@@ -328,6 +341,8 @@ public class RideService {
         dto.setDriverId(ride.getDriverId()); // Consider fetching driver details (name) for the DTO
         dto.setDepartureCity(ride.getDepartureCity());
         dto.setDestinationCity(ride.getDestinationCity());
+        dto.setDepartureState(ride.getDepartureState());
+        dto.setDestinationState(ride.getDestinationState());
         dto.setDepartureAddress(ride.getDepartureAddress());
         dto.setDestinationAddress(ride.getDestinationAddress());
         dto.setDepartureTime(ride.getDepartureTime());

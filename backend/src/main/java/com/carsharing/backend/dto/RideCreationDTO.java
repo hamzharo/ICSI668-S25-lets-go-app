@@ -7,6 +7,8 @@ import java.util.List;
 public class RideCreationDTO {
 
     private String departureCity;
+    private String destinationState;
+    private String departureState;
     private String destinationCity;
     private String departureAddress; // Optional
     private String destinationAddress; // Optional
@@ -27,6 +29,12 @@ public class RideCreationDTO {
 
     public String getDestinationCity() { return destinationCity; }
     public void setDestinationCity(String destinationCity) { this.destinationCity = destinationCity; }
+
+    public String getDepartureState() { return departureState; }
+    public void setDepartureState(String departureState) { this.departureState = departureState; }
+
+    public String getDestinationState() { return destinationState; }
+    public void setDestinationState(String destinationState) { this.destinationState = destinationState; }
 
     public String getDepartureAddress() { return departureAddress; }
     public void setDepartureAddress(String departureAddress) { this.departureAddress = departureAddress; }

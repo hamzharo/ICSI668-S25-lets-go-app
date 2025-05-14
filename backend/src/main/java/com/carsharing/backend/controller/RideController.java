@@ -48,16 +48,18 @@ public class RideController {
     public ResponseEntity<?> searchRides(
             @RequestParam String departureCity, // Make required for basic search
             @RequestParam String destinationCity, // Make required for basic search
+            @RequestParam String departureState, // Make required for basic search
+            @RequestParam String destinationState, //
             @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE_TIME) LocalDateTime earliestDepartureTime
             // Add more optional params later: latestDepartureTime, minSeats, etc.
     ) {
         log.info("Received ride search request from '{}' to '{}', departing after '{}'",
-                 departureCity, destinationCity, earliestDepartureTime);
+                 departureCity, destinationCity, departureState, destinationState,earliestDepartureTime);
         try {
             // Use current time if not specified by user
             LocalDateTime searchTime = (earliestDepartureTime != null) ? earliestDepartureTime : LocalDateTime.now();
 
-            List<RideDTO> matchingRides = rideService.searchRides(departureCity, destinationCity, searchTime);
+            List<RideDTO> matchingRides = rideService.searchRides(departureCity, destinationCity, departureState, destinationState, searchTime);
 
             if (matchingRides.isEmpty()) {
                 log.info("No matching rides found for search criteria.");

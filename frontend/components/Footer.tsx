@@ -6,10 +6,7 @@ const Footer = ({ user, type = 'desktop' }: FooterProps) => {
 
     // Simulate logout functionality (no actual API call)
     const handleLogout = () => {
-        // For now, simulate the logout process
-        console.log("User logged out");
-        // Redirect to login page (simulated)
-        window.location.href = "/login";
+        console.log()
     };
 
     return (

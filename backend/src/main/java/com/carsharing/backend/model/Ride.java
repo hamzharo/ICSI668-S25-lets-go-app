@@ -30,6 +30,12 @@ public class Ride {
     @Field("destination_city")
     private String destinationCity;
 
+    @Field("departure_state")
+    private String departureState;
+
+    @Field("destination_state")
+    private String destinationState;
+
     @Field("departure_address") // More specific departure point (optional)
     private String departureAddress;
 
@@ -80,19 +86,5 @@ public class Ride {
     @LastModifiedDate // Automatically set on update (Requires @EnableMongoAuditing)
     @Field("updated_at")
     private LocalDateTime updatedAt;
-    // --- Status & Timestamps ---
 
-
-// ... rest of the fields (createdAt, updatedAt)
-
-    // If not using Lombok, add constructors, getters, and setters manually below:
-    // public Ride() {}
-    // public Ride(String driverId, ...) { ... }
-    // public String getId() { return id; }
-    // public void setId(String id) { this.id = id; }
-    // ... etc. for all fields
-
-    // public String getDriverId() {
-    //     return driverId;
-    // }
 }

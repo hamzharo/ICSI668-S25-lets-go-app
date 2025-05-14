@@ -18,12 +18,12 @@ public interface RideRepository extends MongoRepository<Ride, String> {
     List<Ride> findByDepartureCityAndDestinationCityAndStatusAndDepartureTimeAfterAndAvailableSeatsGreaterThan(
             String departureCity,
             String destinationCity,
+            String departureStste,
+            String destinationState,
             RideStatus status, // <-- ADDED RideStatus parameter
             LocalDateTime departureTime,
             int availableSeats
     );
 
-    // You can add more specific query methods here as needed
-    // For example, if you need to find rides by status for an admin:
-    // List<Ride> findByStatus(RideStatus status);
+
 }

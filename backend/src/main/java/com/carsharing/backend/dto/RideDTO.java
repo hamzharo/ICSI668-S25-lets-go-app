@@ -13,6 +13,8 @@ public class RideDTO {
     private String driverId;
     private String departureCity;
     private String destinationCity;
+    private String departureState;
+    private String destinationState;
     private String departureAddress;
     private String destinationAddress;
     private LocalDateTime departureTime;
@@ -22,15 +24,12 @@ public class RideDTO {
     private double farePerSeat;
     private List<String> intermediateStops;
     private String luggagePreference;
-    private boolean smokingAllowed; // Lombok generates isSmokingAllowed() and setSmokingAllowed()
-    private boolean petsAllowed;    // Lombok generates isPetsAllowed() and setPetsAllowed()
+    private boolean smokingAllowed; 
+    private boolean petsAllowed;    
     private String rideNotes;
     private RideStatus status;
     private LocalDateTime createdAt;
     private LocalDateTime updatedAt;
 
-    // Lombok's @Data annotation provides a constructor for final fields,
-    // a no-args constructor if there are no final fields, getters, setters,
-    // toString, equals, and hashCode.
-    // If you added any manual constructors, ensure they don't conflict.
+    
 }
