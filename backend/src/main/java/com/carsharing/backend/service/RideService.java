@@ -91,20 +91,21 @@ public class RideService {
         return convertToDto(savedRide);
     }
 
-    public List<RideDTO> searchRides(String departureCity, String destinationCity, String departureSate, String destinationState, LocalDateTime earliestDepartureTime) {
+    public List<RideDTO> searchRides(String departureCity, String destinationCity, String departureState, String destinationState, LocalDateTime earliestDepartureTime) {
         LocalDateTime searchTime = (earliestDepartureTime != null) ? earliestDepartureTime : LocalDateTime.now();
-        log.info("Searching for rides from '{}' to '{}' departing after '{}'", departureCity, destinationCity, departureSate, destinationState, searchTime);
+        log.info("Searching for rides from '{}', '{}' to '{}', '{}' departing after '{}'", departureCity, departureState, destinationCity, destinationState, searchTime);
 
-        List<Ride> results = rideRepository.findByDepartureCityAndDestinationCityAndStatusAndDepartureTimeAfterAndAvailableSeatsGreaterThan(
+        List<Ride> results = rideRepository.findByDepartureCityAndDestinationCityAndDepartureStateAndDestinationStateAndStatusAndDepartureTimeAfterAndAvailableSeatsGreaterThan(
                 departureCity,
                 destinationCity,
-                departureSate,
+                departureState,
                 destinationState,
 
                 RideStatus.SCHEDULED, // Only search for scheduled rides
                 searchTime,
                 0
         );
+
         log.info("Found {} rides matching search criteria.", results.size());
         return convertToDtoList(results);
     }
@@ -256,7 +257,7 @@ public class RideService {
             significantChange = true;
         }
         if (rideUpdateDTO.getDepartureState() != null && !Objects.equals(rideUpdateDTO.getDepartureState(),ride.getDepartureState())) {
-            ride.setDepartureState(currentUserEmail);(rideUpdateDTO.getDepartureState());
+            ride.setDepartureState(rideUpdateDTO.getDepartureState());
             significantChange = true;
         }
         if (rideUpdateDTO.getDestinationState() != null && !Objects.equals(rideUpdateDTO.getDestinationState(),ride.getDestinationState())) {

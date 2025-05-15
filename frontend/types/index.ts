@@ -121,6 +121,8 @@ export interface RideSearchResult {
     driverLastName?: string;
     departureCity: string;
     destinationCity: string;
+    departureState: string;
+    destinationState: string;
     departureTime: string;
     estimatedArrivalTime: string;
     availableSeats: number;
@@ -132,6 +134,8 @@ export interface RideSearchResult {
 export interface RideSearchFormValues {
     departureCity: string;
     destinationCity: string;
+    departureState: string;
+    destinationState: string;
     earliestDepartureTime: string;
 }
 
@@ -157,24 +161,43 @@ export interface UserRideBookingStatus {
     seatsBooked?: number;
 }
 
-export interface PassengerBooking {
-  bookingId: string;
-  rideId: string;
-  rideDetails: {
-    departureCity: string;
-    destinationCity: string;
-    departureTime: string;
-    pricePerSeat?: number;
-  };
-  seatsBooked: number;
-  totalAmount?: number;
-  status: BookingStatus;
-  bookingDate: string;
-}
+// export interface PassengerBooking {
+//   bookingId: string;
+//   rideId: string;
+//   rideDetails: {
+//     departureCity: string;
+//     destinationCity: string;
+//     departureState: string;
+//     destinationState: string;
+//     departureTime: string;
+//     pricePerSeat?: number;
+//   };
+//   seatsBooked: number;
+//   totalAmount?: number;
+//   status: BookingStatus;
+//   bookingDate: string;
+// }
 
+
+export interface PassengerBooking {
+ 
+  bookingId: string;      // Assuming 'id' from BookingDTO maps to 'bookingId'
+  rideId: string;
+  passengerId: string;    // Typically present in BookingDTO
+  driverId: string;       // Typically present in BookingDTO
+  requestedSeats: number; // 'requestedSeats' is common in BookingDTOs
+  status: BookingStatus;
+  bookingTime: string;    // Likely 'createdAt' from BookingDTO
+  confirmationTime?: string;
+  cancellationTime?: string;
+ 
+  rideDetails?: RideDetails; // <--- MADE OPTIONAL and uses the full RideDetails type
+}
 export interface RideCreationFormValues {
   departureCity: string;
   destinationCity: string;
+  departureState: string;
+  destinationState: string;
   departureTime: string;
   estimatedArrivalTime: string;
   availableSeats: number;
@@ -186,6 +209,8 @@ export interface RideCreationFormValues {
 export interface RideCreationDTO {
   departureCity: string;
   destinationCity: string;
+  departureState: string;
+  destinationState: string;
   departureTime: string;
   estimatedArrivalTime: string;
   availableSeats: number;
@@ -209,6 +234,8 @@ export interface DriverOfferedRide {
   id: string;
   departureCity: string;
   destinationCity: string;
+  departureState: string;
+  destinationState: string;
   departureTime: string;
   estimatedArrivalTime: string;
   availableSeats: number;
@@ -225,6 +252,8 @@ export interface DriverOfferedRide {
 export interface RideUpdateFormValues {
   departureCity?: string;
   destinationCity?: string;
+  departureState: string;
+  destinationState: string;
   departureTime?: string;
   estimatedArrivalTime?: string;
   availableSeats?: number;
@@ -236,6 +265,8 @@ export interface RideUpdateFormValues {
 export interface RideUpdateDTO {
   departureCity?: string;
   destinationCity?: string;
+  departureState: string;
+  destinationState: string;
   departureTime?: string;
   estimatedArrivalTime?: string;
   availableSeats?: number;
@@ -258,6 +289,8 @@ export interface EarningTransaction {
   rideId: string;
   rideDepartureCity: string;
   rideDestinationCity: string;
+  departureState: string;
+  destinationState: string;
   rideCompletionDate: string;
   numberOfPassengers?: number;
   amountEarned: number;
@@ -299,3 +332,35 @@ export interface UserFilterValues {
   status: 'ALL' | AccountStatus | DriverStatus | 'DRIVER_PENDING' | 'DRIVER_APPROVED' | 'DRIVER_REJECTED';
   searchTerm: string;
 }
+
+
+// likely matching your backend's RideDTO structure that /api/rides/{rideId} would return.
+export interface RideDetails {
+  id: string; 
+  driverId: string;
+  driverName?: string; 
+  driverProfileImageUrl?: string; 
+  departureCity: string;
+  destinationCity: string;
+  departureState: string;
+  destinationState: string;
+  departureAddress?: string; 
+  destinationAddress?: string; 
+  departureTime: string;
+  estimatedArrivalTime?: string;
+  availableSeats: number;
+  totalSeats: number; // Add if your RideDTO has this (DriverOfferedRide has it)
+  farePerSeat: number; // Renamed from pricePerSeat for consistency if backend DTO uses this
+  vehicleDescription?: string;
+  intermediateStops?: string[]; // Add if RideDTO has this
+  luggagePreference?: string;   // Add if RideDTO has this
+  smokingAllowed?: boolean;     // Add if RideDTO has this
+  petsAllowed?: boolean;        // Add if RideDTO has this
+  rideNotes?: string;
+  status: 'SCHEDULED' | 'ACTIVE' | 'COMPLETED' | 'CANCELLED_BY_DRIVER' | 'CANCELLED_SYSTEM'; // Match RideDTO statuses
+  createdAt?: string; // ISO String
+  updatedAt?: string; // ISO String
+  // Add any other fields you expect from GET /api/rides/{rideId}
+}
+
+

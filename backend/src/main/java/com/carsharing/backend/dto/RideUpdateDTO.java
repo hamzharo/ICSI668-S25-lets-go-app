@@ -19,7 +19,7 @@ public class RideUpdateDTO {
     private String departureState;
 
     @Size(min = 2, max = 100, message = "Destination state must be between 2 and 100 characters")
-    private String destinationStae ;
+    private String destinationState ;
 
     @Size(max = 255, message = "Departure address can be up to 255 characters")
     private String departureAddress;

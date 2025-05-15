@@ -53,8 +53,8 @@ public class RideController {
             @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE_TIME) LocalDateTime earliestDepartureTime
             // Add more optional params later: latestDepartureTime, minSeats, etc.
     ) {
-        log.info("Received ride search request from '{}' to '{}', departing after '{}'",
-                 departureCity, destinationCity, departureState, destinationState,earliestDepartureTime);
+        log.info("Received ride search request from '{}','{}' to '{}','{}' departing after '{}'",
+                 departureCity, departureState, destinationCity, destinationState, earliestDepartureTime);
         try {
             // Use current time if not specified by user
             LocalDateTime searchTime = (earliestDepartureTime != null) ? earliestDepartureTime : LocalDateTime.now();

@@ -44,7 +44,7 @@ public class SecurityConfig {
         .csrf(csrf -> csrf.disable()) // Disable CSRF for stateless APIs
         .authorizeHttpRequests(authz -> authz
             // Allow access to root, health, and authentication endpoints
-            .requestMatchers("/", "/api/auth/**", "/api/health", "api/driver/**").permitAll()
+            .requestMatchers("/", "/api/auth/**", "/api/health", "/api/driver/**", "/api/rides/{rideId}").permitAll()
             // Secure all other requests
             .anyRequest().authenticated()
         )
@@ -95,22 +95,4 @@ public class SecurityConfig {
         return new BCryptPasswordEncoder();
     }
 }
-    // --- Add this CORS Configuration Bean ---
-//     @Bean
-//     CorsConfigurationSource corsConfigurationSource() {
-//         CorsConfiguration configuration = new CorsConfiguration();
-//         // IMPORTANT: Allow the origin of your frontend development server
-//         configuration.setAllowedOrigins(Arrays.asList("http://localhost:3000"));
-//         // Allow common methods
-//         configuration.setAllowedMethods(Arrays.asList("GET", "POST", "PUT", "DELETE", "OPTIONS", "HEAD"));
-//         // Allow common headers, including Authorization for JWT
-//         configuration.setAllowedHeaders(Arrays.asList("Authorization", "Cache-Control", "Content-Type"));
-//         // Allow credentials (important if you were using cookies/sessions, less critical for pure JWT but good practice)
-//         // configuration.setAllowCredentials(true); // Uncomment if needed later
-
-//         UrlBasedCorsConfigurationSource source = new UrlBasedCorsConfigurationSource();
-//         source.registerCorsConfiguration("/api/**", configuration); // Apply CORS to all /api paths
-//         return source;
-//     }
-//     // --- End of CORS Configuration Bean ---
-// }
+    

@@ -1,7 +1,7 @@
 // frontend/components/rides/RideSearchForm.tsx
 'use client';
 
-import React, { useState } from 'react';
+import React from 'react'; // Removed useState as form handles state
 import { useForm, SubmitHandler } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
@@ -9,16 +9,20 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Form, FormControl, FormDescription, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { RideSearchFormValues } from '@/types'; // Import the type
-import { Loader2, Search } from 'lucide-react';
+import { RideSearchFormValues } from '@/types';
+import { Loader2, Search, MapPin } from 'lucide-react'; // Added MapPin for state
 
-// Zod schema for form validation
+// Zod schema for form validation - UPDATED
 const rideSearchSchema = z.object({
   departureCity: z.string().min(1, "Departure city is required."),
+  departureState: z.string().min(1, "Departure state is required.").max(50, "State should be 50 chars or less."), // ADDED
   destinationCity: z.string().min(1, "Destination city is required."),
-  earliestDepartureTime: z.string().min(1, "Departure date & time is required.") // Basic validation, refine if needed
-    // You might want to validate that this is a valid date/time string
-    // Or use a date picker component that returns a Date object, then format it.
+  destinationState: z.string().min(1, "Destination state is required.").max(50, "State should be 50 chars or less."), // ADDED
+  earliestDepartureTime: z.string().min(1, "Departure date & time is required.")
+    // Consider further validation if backend expects strict ISO or specific format
+    .refine(val => !isNaN(Date.parse(val)), {
+        message: "Invalid date and time format.", // Basic check if it's parsable
+    }),
 });
 
 interface RideSearchFormProps {
@@ -31,25 +35,45 @@ const RideSearchForm = ({ onSearch, isLoading }: RideSearchFormProps) => {
     resolver: zodResolver(rideSearchSchema),
     defaultValues: {
       departureCity: '',
+      departureState: '', // ADDED
       destinationCity: '',
-      earliestDepartureTime: '', // Default to empty or current date/time formatted
+      destinationState: '', // ADDED
+      earliestDepartureTime: '',
     },
   });
 
-  // useEffect to set a default date might be useful here
-  // For example, set earliestDepartureTime to today at 00:00
   React.useEffect(() => {
     const today = new Date();
-    today.setHours(0, 0, 0, 0); // Start of today
-    // Format it as YYYY-MM-DDTHH:MM as required by <input type="datetime-local">
-    // Or however your backend expects it (e.g., ISO string)
-    const formattedDefaultDate = today.toISOString().slice(0, 16); // YYYY-MM-DDTHH:MM
+    // Set time to 00:00 for default, or let user pick
+    // const formattedDefaultDate = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, '0')}-${String(today.getDate()).padStart(2, '0')}T00:00`;
+    // Or keep it simple and let the input type="datetime-local" handle its default rendering
+    // For a better UX, consider a dedicated date-time picker component.
+    // For now, we'll set it to the current date and time.
+    const now = new Date();
+    now.setMinutes(now.getMinutes() - now.getTimezoneOffset()); // Adjust for local timezone for datetime-local
+    const formattedDefaultDate = now.toISOString().slice(0,16);
+
     form.setValue('earliestDepartureTime', formattedDefaultDate);
   }, [form]);
 
 
   const onSubmit: SubmitHandler<RideSearchFormValues> = (data) => {
-    onSearch(data);
+    const trimmedData: RideSearchFormValues = {
+      departureCity: data.departureCity.trim(),
+      departureState: data.departureState.trim(),
+      destinationCity: data.destinationCity.trim(), 
+      destinationState: data.destinationState.trim(),
+      earliestDepartureTime: data.earliestDepartureTime, 
+    };
+
+
+    console.log("Form Data Submitted by RideSearchForm (trimmed):", trimmedData);
+
+    // Call the onSearch prop with the CLEANED, TRIMMED data
+    onSearch(trimmedData);
+
+    // console.log("Form Data Submitted:", data); // For debugging
+    // onSearch(data);
   };
 
   return (
@@ -62,15 +86,28 @@ const RideSearchForm = ({ onSearch, isLoading }: RideSearchFormProps) => {
       <CardContent>
         <Form {...form}>
           <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6">
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-x-6 gap-y-6"> {/* Adjusted gap for y-axis too */}
               <FormField
                 control={form.control}
                 name="departureCity"
                 render={({ field }) => (
                   <FormItem>
-                    <FormLabel>Leaving From</FormLabel>
+                    <FormLabel>Leaving From City</FormLabel>
                     <FormControl>
                       <Input placeholder="E.g., New York" {...field} />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+              <FormField // NEW DEPARTURE STATE FIELD
+                control={form.control}
+                name="departureState"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Departure State</FormLabel>
+                    <FormControl>
+                      <Input placeholder="E.g., CA, NY" {...field} />
                     </FormControl>
                     <FormMessage />
                   </FormItem>
@@ -81,9 +118,22 @@ const RideSearchForm = ({ onSearch, isLoading }: RideSearchFormProps) => {
                 name="destinationCity"
                 render={({ field }) => (
                   <FormItem>
-                    <FormLabel>Going To</FormLabel>
+                    <FormLabel>Going To City</FormLabel>
                     <FormControl>
                       <Input placeholder="E.g., Boston" {...field} />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+              <FormField // NEW DESTINATION STATE FIELD
+                control={form.control}
+                name="destinationState"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Destination State</FormLabel>
+                    <FormControl>
+                      <Input placeholder="E.g., MA, FL" {...field} />
                     </FormControl>
                     <FormMessage />
                   </FormItem>
@@ -97,7 +147,6 @@ const RideSearchForm = ({ onSearch, isLoading }: RideSearchFormProps) => {
                 <FormItem>
                   <FormLabel>Departure Date & Time (Earliest)</FormLabel>
                   <FormControl>
-                    {/* Using datetime-local input type. Consider a custom date picker for better UX. */}
                     <Input type="datetime-local" {...field} />
                   </FormControl>
                   <FormDescription>
@@ -107,7 +156,6 @@ const RideSearchForm = ({ onSearch, isLoading }: RideSearchFormProps) => {
                 </FormItem>
               )}
             />
-            {/* Add more fields like 'number of seats' if needed */}
             <div className="pt-2">
               <Button type="submit" className="w-full md:w-auto" size="lg" disabled={isLoading}>
                 {isLoading ? (

@@ -15,15 +15,13 @@ public interface RideRepository extends MongoRepository<Ride, String> {
     List<Ride> findByDriverId(String driverId);
 
     // Updated search query to include RideStatus
-    List<Ride> findByDepartureCityAndDestinationCityAndStatusAndDepartureTimeAfterAndAvailableSeatsGreaterThan(
+    List<Ride> findByDepartureCityAndDestinationCityAndDepartureStateAndDestinationStateAndStatusAndDepartureTimeAfterAndAvailableSeatsGreaterThan(
             String departureCity,
             String destinationCity,
-            String departureStste,
+            String departureState,
             String destinationState,
             RideStatus status, // <-- ADDED RideStatus parameter
             LocalDateTime departureTime,
             int availableSeats
     );
-
-
 }

@@ -8,7 +8,6 @@ import org.springframework.data.annotation.Id;
 import org.springframework.data.annotation.LastModifiedDate;
 import org.springframework.data.mongodb.core.mapping.Document;
 import org.springframework.data.mongodb.core.mapping.Field;
-import com.carsharing.backend.model.BookingStatus;
 
 import java.time.LocalDateTime;
 
@@ -33,22 +32,12 @@ public class Booking {
     @Field("requested_seats") // Number of seats booked by the passenger
     private int requestedSeats;
 
-    /**
-     * Status of the booking. Potential values:
-     * - REQUESTED: Passenger has requested, pending driver action.
-     * - CONFIRMED: Driver accepted the request.
-     * - REJECTED_BY_DRIVER: Driver denied the request.
-     * - CANCELLED_BY_PASSENGER: Passenger cancelled after confirmation.
-     * - CANCELLED_BY_DRIVER: Driver cancelled the ride after confirmation.
-     * - COMPLETED: The ride associated with this booking was completed.
-     * (Could be an Enum later)
-     */
+
     @Field("status")
     private BookingStatus status;
     @Field("payment_id") // Links to a Payment document ID (can be null initially)
     private String paymentId;
 
-    // --- Timestamps ---
 
     @CreatedDate // When the booking was first requested
     @Field("created_at")
@@ -65,5 +54,5 @@ public class Booking {
     private LocalDateTime cancellationTime;
 
 
-    // If not using Lombok, add constructors, getters, and setters manually below.
+
 }
