@@ -2,8 +2,8 @@
 'use client';
 
 import { Separator } from "@/components/ui/separator";
-import { DocumentListTable } from "./components/DocumentListTable";
-import { DocumentUploadModal } from "./components/DocumentUploadModal";
+import { DocumentListTable } from "@/components/documents/DocumentListTable";
+import { DocumentUploadModal } from "@/components/documents/DocumentUploadModal";
 import { Button } from "@/components/ui/button";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -53,7 +53,7 @@ export default function UploadDocumentsPage() {
     const [isUploadModalOpen, setIsUploadModalOpen] = useState(false);
 
     const refreshDocuments = useCallback(async () => {
-        if (!token || user?.role !== 'DRIVER') {
+        if (!token || user?.roles !== 'DRIVER') {
             setIsLoadingDocs(false);
             return;
         }
@@ -68,7 +68,7 @@ export default function UploadDocumentsPage() {
         } finally {
             setIsLoadingDocs(false);
         }
-    }, [token, user?.role]);
+    }, [token, user?.roles]);
 
     useEffect(() => {
         if (!authLoading) { // Only run if auth context is no longer loading
@@ -99,7 +99,7 @@ export default function UploadDocumentsPage() {
         return <div className="flex justify-center items-center h-60"><Loader2 className="h-10 w-10 animate-spin text-primary" /></div>;
     }
 
-    if (user?.role !== 'DRIVER') {
+    if (user?.roles !== 'DRIVER') {
         return (
             <div className="space-y-6 p-6 md:p-10 max-w-3xl mx-auto">
                  <Alert variant="default" className="mt-10">

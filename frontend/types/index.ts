@@ -1,32 +1,11 @@
 // frontend/types/index.ts
 
-// --- Authentication & User Core Types ---
-// ACTION: Verified against backend expectations.
-
-/**
- * User roles defined in the system.
- * Backend Expectation: "ROLE_PASSENGER", "ROLE_DRIVER", "ROLE_ADMIN"
- */
 export type UserRole = 'PASSENGER' | 'DRIVER' | 'ADMIN';
 
-/**
- * Status of a user's driver application/profile.
- * Backend Expectation: String field on User, explicitly set to "APPROVED" by DocumentService. Defaults to "NONE".
- * Frontend might infer PENDING_VERIFICATION or REJECTED based on other data if needed.
- */
-export type DriverStatus = 'NONE' | 'PENDING_VERIFICATION' | 'APPROVED' | 'REJECTED'; // REJECTED might be set on User by backend eventually or inferred
+export type DriverStatus = 'NONE' | 'PENDING_APPROVAL' | 'APPROVED' | 'REJECTED'; 
 
-/**
- * General account status for a user.
- * Backend Expectation: This field/logic likely doesn't exist yet on the backend.
- * Kept for future use. UI should default to 'ACTIVE' for logged-in users until supported.
- */
 export type AccountStatus = 'ACTIVE' | 'SUSPENDED' | 'PENDING_EMAIL_VERIFICATION' | 'DEACTIVATED';
 
-/**
- * Data Transfer Object for user registration (sign-up).
- * Backend Expectation: Uses 'email'.
- */
 export interface SignupRequestDTO {
   firstName: string;
   lastName: string;
@@ -34,54 +13,35 @@ export interface SignupRequestDTO {
   password: string;
 }
 
-/**
- * Data Transfer Object for user login.
- * Backend Expectation: Uses 'email'.
- */
 export interface LoginRequestDTO {
   email: string; // Changed from emailId
   password: string;
 }
 
-/**
- * Response Data Transfer Object after successful authentication.
- * Backend Expectation: Likely returns only { "accessToken": "..." }.
- */
 export interface AuthResponseDTO {
   token: string;
-  // Other fields removed as per backend expectation
 }
 
-/**
- * Represents the claims decoded from the JWT (accessToken).
- * Backend Expectation: sub (as email), roles (as string[]), exp, iat.
- */
 export interface DecodedJwt {
   sub: string; // Subject (this IS the user's email from backend)
   roles: string[]; // Backend sends roles claim as an array of UserRole compatible strings
   exp: string; // Expiration time (Unix timestamp)
   iat: string; // Issued at time (Unix timestamp)
-  // Removed: emailId, firstName, lastName, role (singular), driverStatus
 }
 
-/**
- * Represents the detailed User object.
- * Backend Expectation (GET /api/users/me): id, name (or firstName/lastName), email, roles (plural, array), driverStatus.
- */
 export interface User {
   id: string;
-  // Assuming backend provides firstName and lastName separately. Adjust if it's a single 'name' field.
   firstName?: string;
   lastName?: string;
+  username?: string;
   email: string; // Changed from emailId
   roles: UserRole[]; // Changed from singular role to array of UserRole type
-  driverStatus: DriverStatus | null; // Use updated DriverStatus type
-  createdAt?: string; // Often provided by auditing; confirm with backend
-  // Removed accountStatus, profileImageUrl, updatedAt as likely not provided by backend /me yet
-  // Add other fields like 'phone' if your backend GET /api/users/me provides them.
+  driverStatus: DriverStatus | null; 
+  createdAt?: string; 
+
+  profilePictureUrl?: string; 
 }
 
-// --- Document Management Types ---
 export interface DocumentMetadata {
   id: string;
   fileName: string;
@@ -101,18 +61,16 @@ export interface AdminDocumentView extends DocumentMetadata {
   userId: string;
   userFirstName: string;
   userLastName: string;
-  userEmail: string; // This seems fine if it's how the specific admin view for documents returns it
+  userEmail: string; 
 }
 
-export type DocumentStatus = 'PENDING_VERIFICATION' | 'VERIFIED' | 'REJECTED';
+export type DocumentStatus = 'PENDING_VERIFICATION' | 'VERIFIED' | 'REJECTED'| 'NONE';
 
 export interface DocumentStatusUpdatePayload {
   newStatus: 'VERIFIED' | 'REJECTED';
   rejectionReason?: string;
 }
 
-
-// --- Ride & Booking Related Types (Verify field names & enums against backend) ---
 
 export interface RideSearchResult {
     id: string;
@@ -160,23 +118,6 @@ export interface UserRideBookingStatus {
     status?: BookingStatus;
     seatsBooked?: number;
 }
-
-// export interface PassengerBooking {
-//   bookingId: string;
-//   rideId: string;
-//   rideDetails: {
-//     departureCity: string;
-//     destinationCity: string;
-//     departureState: string;
-//     destinationState: string;
-//     departureTime: string;
-//     pricePerSeat?: number;
-//   };
-//   seatsBooked: number;
-//   totalAmount?: number;
-//   status: BookingStatus;
-//   bookingDate: string;
-// }
 
 
 export interface PassengerBooking {
@@ -334,7 +275,6 @@ export interface UserFilterValues {
 }
 
 
-// likely matching your backend's RideDTO structure that /api/rides/{rideId} would return.
 export interface RideDetails {
   id: string; 
   driverId: string;
@@ -360,7 +300,7 @@ export interface RideDetails {
   status: 'SCHEDULED' | 'ACTIVE' | 'COMPLETED' | 'CANCELLED_BY_DRIVER' | 'CANCELLED_SYSTEM'; // Match RideDTO statuses
   createdAt?: string; // ISO String
   updatedAt?: string; // ISO String
-  // Add any other fields you expect from GET /api/rides/{rideId}
+
 }
 
 

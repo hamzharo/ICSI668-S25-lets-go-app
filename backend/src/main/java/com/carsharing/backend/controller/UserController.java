@@ -18,15 +18,13 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 import org.springframework.web.multipart.MultipartFile; // Import MultipartFile
 import org.springframework.web.bind.annotation.RequestParam; // Import RequestParam
-import org.springframework.data.domain.Page;
-import org.springframework.data.domain.Pageable;
+
 
 import com.carsharing.backend.service.UserService; // Import UserService
 import com.carsharing.backend.exception.FileStorageException; // Import FileStorageException
 import com.carsharing.backend.exception.ResourceNotFoundException;
 import com.carsharing.backend.model.User;
 import com.carsharing.backend.repository.UserRepository;
-import com.carsharing.backend.dto.UserDTO;
 
 import com.mongodb.lang.NonNull;
 
@@ -44,11 +42,6 @@ public class UserController {
 
     @Autowired // Inject UserService
     private UserService userService;
-
-    // POST /api/users - THIS SHOULD GENERALLY NOT EXIST
-    // User creation should happen via /api/auth/signup
-    // @PostMapping
-    // public ResponseEntity<User> createUser(@RequestBody User user) { ... }
 
     // Get all users - Only for Admins
     @NonNull
