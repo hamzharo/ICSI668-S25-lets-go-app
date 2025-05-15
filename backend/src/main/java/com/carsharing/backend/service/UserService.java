@@ -190,7 +190,7 @@ public class UserService { // Or DriverApplicationService
         // For simplicity now, storing filename. Viewing endpoint will need base dir.
         docInfo.setFilePath(storedFilename);
         docInfo.setUploadTimestamp(LocalDateTime.now());
-        docInfo.setVerificationStatus(DocumentStatus.PENDING_VERIFICATION); // Initial status
+        docInfo.setVerificationStatus(DocumentStatus.PENDING_APPROVAL); // Initial status
 
         // 4. Add metadata to user's document list
         // Ensure list exists (should be handled by constructor/getter)

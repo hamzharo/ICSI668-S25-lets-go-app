@@ -34,6 +34,27 @@ public class RideController {
     @Autowired // Inject BookingService
     private BookingService bookingService;
 
+    @GetMapping("/{rideId}")
+    public ResponseEntity<RideDTO> getRideById(@PathVariable String rideId) {
+        try {
+            // Assuming rideService.getRideDetailsById fetches the Ride
+            // and converts it to a DTO suitable for the frontend.
+            RideDTO rideDetails = rideService.getRideDetailsById(rideId);
+            if (rideDetails == null) {
+                return ResponseEntity.notFound().build();
+            }
+            return ResponseEntity.ok(rideDetails);
+        } catch (ResourceNotFoundException e) {
+            // Log a warning if you have specific exception for not found
+            log.warn("Ride not found with ID: {}", rideId, e);
+            return ResponseEntity.notFound().build();
+        } catch (Exception e) {
+            log.error("Error fetching ride details for ID {}: {}", rideId, e.getMessage(), e);
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).build();
+        }
+    }
+
+
     /**
      * Searches for available rides based on criteria.
      * Accessible by PASSENGER and DRIVER roles.

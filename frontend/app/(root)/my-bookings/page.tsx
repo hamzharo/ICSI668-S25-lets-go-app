@@ -3,7 +3,7 @@
 
 import React, { useEffect, useState, useCallback } from 'react';
 import { useAuth } from '@/lib/AuthContext';
-import { PassengerBooking, RideDetails } from '@/types'; // Ensure these are correctly defined in types/index.ts
+import { PassengerBooking, RideDetails, BookingStatus } from '@/types'; // Ensure these are correctly defined in types/index.ts
 import BookingCard from '@/components/bookings/BookingCard';
 import { toast } from 'react-toastify';
 import { Loader2, ListChecks, Frown, Inbox } from 'lucide-react';
@@ -11,6 +11,8 @@ import { Loader2, ListChecks, Frown, Inbox } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import Link from 'next/link';
 import { Separator } from '@/components/ui/separator';
+import PassengerNavigationSidebar from '@/components/sidebars/PassengerNavigationSidebar';
+
 
 // --- API Service Calls ---
 const API_URL = process.env.NEXT_PUBLIC_API_URL;
@@ -50,22 +52,37 @@ const fetchMyBookingsApi = async (token: string | null): Promise<Omit<PassengerB
 const fetchRideDetailsApi = async (rideId: string, token: string | null): Promise<RideDetails> => {
   if (!token) throw new Error("Authentication required for ride details.");
   if (!API_URL) throw new Error("API URL not configured for ride details.");
+  if (!rideId) { // Add a check for rideId
+    console.error("fetchRideDetailsApi called without a rideId.");
+    throw new Error("rideId is required to fetch ride details.");
+  }
 
-  console.log(`API CALL: Fetching ride details for ride ${rideId}`);
-  console.log(`API CALL FROM MY-BOOKINGS TO: ${API_URL}/api/passenger/my-bookings`);
-  const response = await fetch(`${API_URL}/api/passenger/my-bookings`, { // ENSURE THIS ENDPOINT EXISTS
+  console.log(`API CALL: Fetching ride details for ride ${rideId} from ${API_URL}/api/rides/${rideId}`); // Updated log
+  const response = await fetch(`${API_URL}/api/rides/${rideId}`, { // CORRECTED ENDPOINT
     headers: {
       'Authorization': `Bearer ${token}`,
+      // 'Content-Type': 'application/json' // Usually not needed for GET
     }
   });
 
   if (!response.ok) {
-    const errorResult = await response.json().catch(() => ({ message: `Failed to fetch ride details for ${rideId}.` }));
-    throw new Error(errorResult.message || `Failed to fetch ride details for ${rideId}.`);
+    let errorMessage = `Failed to fetch ride details for ride ${rideId} (Status: ${response.status}).`;
+    try {
+      const errorResult = await response.json();
+      errorMessage = errorResult.message || errorMessage;
+    } catch (e) {
+      // If parsing JSON fails, the response might not be JSON or might be empty.
+      const errorBodyText = await response.text().catch(() => "Could not read error body.");
+      if (errorBodyText && errorBodyText.length < 200) {
+        errorMessage += ` Server response: ${errorBodyText}`;
+      }
+    }
+    throw new Error(errorMessage);
   }
 
-  console.log("RESPONSE FROM MY-BOOKINGS:", response.json);
-  return response.json();
+  const rideDetails: RideDetails = await response.json(); // Parse the JSON response
+  console.log(`SUCCESS: Fetched ride details for ride ${rideId}:`, rideDetails);
+  return rideDetails; // Return the parsed ride details object
 };
 
 /**
@@ -107,6 +124,8 @@ export default function MyBookingsPage() {
   const [error, setError] = useState<string | null>(null);
   const [cancellingBookingId, setCancellingBookingId] = useState<string | null>(null);
 
+
+
   const loadBookings = useCallback(async () => {
     if (!token || !user) {
       if (!authLoading) setIsLoadingBookings(false);
@@ -115,36 +134,52 @@ export default function MyBookingsPage() {
     setIsLoadingBookings(true);
     setError(null);
     try {
-      // Step 1: Fetch initial bookings (without rideDetails)
-      const initialBookings = await fetchMyBookingsApi(token);
+      // Step 1: Fetch initial bookings (which are like Backend's BookingDTO)
+      // fetchMyBookingsApi returns: Promise<Omit<PassengerBooking, 'rideDetails'>[]>
+      // but the actual raw data from backend has 'id' for bookingId and 'requestedSeats'
+      const rawInitialBookings: any[] = await fetchMyBookingsApi(token); // Treat as raw DTO array
 
-      if (initialBookings.length === 0) {
+      if (rawInitialBookings.length === 0) {
         setBookings([]);
         setIsLoadingBookings(false);
         return;
       }
 
+      // Map raw DTOs to the frontend PassengerBooking structure
+      const initialBookings: Omit<PassengerBooking, 'rideDetails'>[] = rawInitialBookings.map(dto => ({
+        bookingId: dto.id, // Map 'id' from DTO to 'bookingId'
+        rideId: dto.rideId,
+        passengerId: dto.passengerId,
+        driverId: dto.driverId,
+        requestedSeats: dto.requestedSeats, // 'requestedSeats' name matches in DTO and PassengerBooking type
+        status: dto.status as BookingStatus, // Ensure status is cast to your BookingStatus enum/type
+        bookingTime: dto.bookingTime,
+        confirmationTime: dto.confirmationTime,
+        cancellationTime: dto.cancellationTime,
+        // Any other fields defined on PassengerBooking (excluding rideDetails) should be mapped here if they come from the DTO
+      }));
+
       // Step 2: Fetch ride details for each booking
       const bookingsWithDetailsPromises = initialBookings.map(async (booking) => {
+        // 'booking' here now has the correctly mapped 'bookingId' and 'requestedSeats'
         try {
-          // Ensure booking.rideId is valid before fetching
           if (!booking.rideId) {
             console.warn(`Booking ${booking.bookingId} is missing a rideId. Cannot fetch ride details.`);
             return { ...booking, rideDetails: undefined };
           }
-          const rideDetailsData = await fetchRideDetailsApi(booking.rideId, token);
+          // fetchRideDetailsApi returns RideDetails.
+          // Your RideDetails type uses 'id' for the ride's ID, which matches the backend RideDTO.
+          const rideDetailsData: RideDetails = await fetchRideDetailsApi(booking.rideId, token);
           return { ...booking, rideDetails: rideDetailsData };
         } catch (rideFetchError: any) {
           console.error(`Failed to fetch ride details for ride ${booking.rideId}:`, rideFetchError.message);
-          // Optionally, show a non-blocking toast for individual ride detail failures
-          // toast.warn(`Could not load full details for one of your rides (ID: ${booking.rideId}). Some information may be missing.`);
           return { ...booking, rideDetails: undefined }; // Keep the booking, but with undefined rideDetails
         }
       });
 
       const enrichedBookings = await Promise.all(bookingsWithDetailsPromises);
 
-      // Sort bookings: active (REQUESTED, CONFIRMED) first, then by departure date
+      // Sort bookings... (your existing sort logic is fine)
       enrichedBookings.sort((a, b) => {
         const activeStatuses = ['REQUESTED', 'CONFIRMED'];
         const aIsActive = a.status && activeStatuses.includes(a.status.toUpperCase());
@@ -153,23 +188,21 @@ export default function MyBookingsPage() {
         if (aIsActive && !bIsActive) return -1;
         if (!aIsActive && bIsActive) return 1;
 
-        // Handle cases where rideDetails or departureTime might be missing (due to fetch error)
         const aDepartureTime = a.rideDetails?.departureTime ? new Date(a.rideDetails.departureTime).getTime() : 0;
         const bDepartureTime = b.rideDetails?.departureTime ? new Date(b.rideDetails.departureTime).getTime() : 0;
 
         if (aIsActive && bIsActive) {
-            if (aDepartureTime === 0 && bDepartureTime !== 0) return 1; // a missing time goes last
-            if (aDepartureTime !== 0 && bDepartureTime === 0) return -1; // b missing time goes last
-            return aDepartureTime - bDepartureTime; // Earlier first
+            if (aDepartureTime === 0 && bDepartureTime !== 0) return 1;
+            if (aDepartureTime !== 0 && bDepartureTime === 0) return -1;
+            return aDepartureTime - bDepartureTime;
         }
-        // For past/inactive bookings
         if (aDepartureTime === 0 && bDepartureTime !== 0) return 1;
         if (aDepartureTime !== 0 && bDepartureTime === 0) return -1;
-        return bDepartureTime - aDepartureTime; // Most recent first
+        return bDepartureTime - aDepartureTime;
       });
 
       setBookings(enrichedBookings);
-    } catch (err: any) { // Catch errors from fetchMyBookingsApi primarily
+    } catch (err: any) {
       console.error("Failed to load bookings:", err);
       setError(err.message || "Could not load your bookings. Please try again.");
       toast.error(err.message || "Failed to load bookings.");
@@ -177,6 +210,79 @@ export default function MyBookingsPage() {
       setIsLoadingBookings(false);
     }
   }, [token, user, authLoading]);
+
+
+
+  // const loadBookings = useCallback(async () => {
+  //   if (!token || !user) {
+  //     if (!authLoading) setIsLoadingBookings(false);
+  //     return;
+  //   }
+  //   setIsLoadingBookings(true);
+  //   setError(null);
+  //   try {
+  //     // Step 1: Fetch initial bookings (without rideDetails)
+  //     const initialBookings = await fetchMyBookingsApi(token);
+
+  //     if (initialBookings.length === 0) {
+  //       setBookings([]);
+  //       setIsLoadingBookings(false);
+  //       return;
+  //     }
+
+  //     // Step 2: Fetch ride details for each booking
+  //     const bookingsWithDetailsPromises = initialBookings.map(async (booking) => {
+  //       try {
+  //         // Ensure booking.rideId is valid before fetching
+  //         if (!booking.rideId) {
+  //           console.warn(`Booking ${booking.bookingId} is missing a rideId. Cannot fetch ride details.`);
+  //           return { ...booking, rideDetails: undefined };
+  //         }
+  //         const rideDetailsData = await fetchRideDetailsApi(booking.rideId, token);
+  //         return { ...booking, rideDetails: rideDetailsData };
+  //       } catch (rideFetchError: any) {
+  //         console.error(`Failed to fetch ride details for ride ${booking.rideId}:`, rideFetchError.message);
+  //         // Optionally, show a non-blocking toast for individual ride detail failures
+  //         // toast.warn(`Could not load full details for one of your rides (ID: ${booking.rideId}). Some information may be missing.`);
+  //         return { ...booking, rideDetails: undefined }; // Keep the booking, but with undefined rideDetails
+  //       }
+  //     });
+
+  //     const enrichedBookings = await Promise.all(bookingsWithDetailsPromises);
+
+  //     // Sort bookings: active (REQUESTED, CONFIRMED) first, then by departure date
+  //     enrichedBookings.sort((a, b) => {
+  //       const activeStatuses = ['REQUESTED', 'CONFIRMED'];
+  //       const aIsActive = a.status && activeStatuses.includes(a.status.toUpperCase());
+  //       const bIsActive = b.status && activeStatuses.includes(b.status.toUpperCase());
+
+  //       if (aIsActive && !bIsActive) return -1;
+  //       if (!aIsActive && bIsActive) return 1;
+
+  //       // Handle cases where rideDetails or departureTime might be missing (due to fetch error)
+  //       const aDepartureTime = a.rideDetails?.departureTime ? new Date(a.rideDetails.departureTime).getTime() : 0;
+  //       const bDepartureTime = b.rideDetails?.departureTime ? new Date(b.rideDetails.departureTime).getTime() : 0;
+
+  //       if (aIsActive && bIsActive) {
+  //           if (aDepartureTime === 0 && bDepartureTime !== 0) return 1; // a missing time goes last
+  //           if (aDepartureTime !== 0 && bDepartureTime === 0) return -1; // b missing time goes last
+  //           return aDepartureTime - bDepartureTime; // Earlier first
+  //       }
+  //       // For past/inactive bookings
+  //       if (aDepartureTime === 0 && bDepartureTime !== 0) return 1;
+  //       if (aDepartureTime !== 0 && bDepartureTime === 0) return -1;
+  //       return bDepartureTime - aDepartureTime; // Most recent first
+  //     });
+
+  //     setBookings(enrichedBookings);
+  //   } catch (err: any) { // Catch errors from fetchMyBookingsApi primarily
+  //     console.error("Failed to load bookings:", err);
+  //     setError(err.message || "Could not load your bookings. Please try again.");
+  //     toast.error(err.message || "Failed to load bookings.");
+  //   } finally {
+  //     setIsLoadingBookings(false);
+  //   }
+  // }, [token, user, authLoading]);
 
   useEffect(() => {
     if (!authLoading && user && token) {
@@ -261,7 +367,10 @@ export default function MyBookingsPage() {
         </p>
       </header>
 
+
       <Separator />
+
+
 
       {isLoadingBookings && bookings.length === 0 && !error && ( // Show loader if still loading and no data/error yet
         <div className="flex flex-col items-center justify-center text-center py-10">

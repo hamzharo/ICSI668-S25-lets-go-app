@@ -134,6 +134,7 @@ export interface PassengerBooking {
  
   rideDetails?: RideDetails; // <--- MADE OPTIONAL and uses the full RideDetails type
 }
+
 export interface RideCreationFormValues {
   departureCity: string;
   destinationCity: string;

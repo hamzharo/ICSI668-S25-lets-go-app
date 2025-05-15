@@ -2,8 +2,9 @@
 package com.carsharing.backend.model;
 
 public enum DocumentStatus {
-    PENDING_VERIFICATION,
-    VERIFIED,
-    REJECTED,
-    EXPIRED 
+    NONE,
+    PENDING_APPROVAL,
+    APPROVED, 
+    REJECTED
+
 }

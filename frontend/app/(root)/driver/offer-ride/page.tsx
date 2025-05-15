@@ -15,7 +15,10 @@ export default function OfferRidePage() {
   const { user, isLoading: authLoading } = useAuth();
   const router = useRouter();
 
+  console.log("offer-ride - Page mounted");
+
   if (authLoading) {
+    console.log("offer-ride - Auth is loading...");
     return (
       <div className="flex flex-grow items-center justify-center h-screen">
         <Loader2 className="h-12 w-12 animate-spin text-primary" />
@@ -25,13 +28,18 @@ export default function OfferRidePage() {
 
   // Redirect if not logged in or not a driver
   if (!user) {
+    console.log("offer-ride - No user, redirecting to login");
     // This should ideally be caught by middleware or (root)/layout.tsx
     // But as a fallback:
     router.replace('/login?redirect=/driver/offer-ride');
     return null; // Render nothing while redirecting
   }
 
-  if (user.role !== 'DRIVER') {
+  console.log("offer-ride - User object from useAuth():", JSON.stringify(user, null, 2));
+  console.log("offer-ride - User roles from useAuth():", user.roles);
+  console.log("offer-ride - User driverStatus from useAuth():", user.driverStatus);
+
+  if (!user.roles.includes('DRIVER')) {
     return (
       <div className="flex flex-col flex-grow items-center justify-center p-6 text-center">
         <AlertTriangle className="h-16 w-16 text-destructive mb-4" />
@@ -46,11 +54,12 @@ export default function OfferRidePage() {
 
   // Check for driver approval status
   if (user.driverStatus !== 'APPROVED') {
+    console.log(`offer-ride - Driver status is ${user.driverStatus}, NOT 'APPROVED'. Showing 'Profile Not Active' UI.`);
     let alertMessage = "Your driver profile is not yet approved. You need an approved profile to offer rides.";
     let buttonText = "Check Document Status";
     let buttonLink = "/profile-settings/upload-documents";
 
-    if (user.driverStatus === 'PENDING_VERIFICATION') {
+    if (user.driverStatus === 'PENDING_APPROVAL') {
         alertMessage = "Your driver profile is currently under review. You'll be able to offer rides once it's approved.";
     } else if (user.driverStatus === 'REJECTED') {
         alertMessage = "There was an issue with your driver application. Please check your documents and resubmit if necessary.";
@@ -78,6 +87,8 @@ export default function OfferRidePage() {
             </Button>
         </div>
     );
+  } else {
+    console.log("offer-ride - Driver status IS 'APPROVED'. Rendering OfferRideForm.");
   }
 
   // If user is a DRIVER and APPROVED, render the form

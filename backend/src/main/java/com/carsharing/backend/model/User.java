@@ -88,8 +88,8 @@ public class User {
     public String getDriverStatus() { return driverStatus; }
     public void setDriverStatus(String driverStatus) { this.driverStatus = driverStatus; }
 
-    // Getter and Setter for the new field
     public List<DocumentInfo> getDocuments() { return documents; }
     public void setDocuments(List<DocumentInfo> documents) { this.documents = documents; }
-}
+
+  }
 

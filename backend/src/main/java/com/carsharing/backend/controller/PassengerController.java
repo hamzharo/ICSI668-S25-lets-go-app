@@ -101,7 +101,6 @@ public class PassengerController {
            }
 
            log.info("Returning {} bookings for passenger '{}'.", bookingDTOs.size(), passengerEmail);
-
             return ResponseEntity.ok(bookingDTOs);
 
             // return ResponseEntity.ok(bookingDTOs); // 200 OK with list

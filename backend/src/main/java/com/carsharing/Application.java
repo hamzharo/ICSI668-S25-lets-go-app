@@ -68,19 +68,14 @@ public class Application {
         };
     }
 
-    /**
-     * Helper method to create a Role only if it doesn't already exist.
-     *
-     * @param roleRepository The repository to interact with the roles collection.
-     * @param roleName       The name of the role to check/create (e.g., "DRIVER").
-     */
+   
     private void initializeRoleIfNotFound(RoleRepository roleRepository, String roleName) {
         Optional<Role> roleOpt = roleRepository.findByName(roleName);
         if (roleOpt.isEmpty()) {
             roleRepository.save(new Role(roleName));
-            System.out.println("✅ Role '" + roleName + "' created.");
+            System.out.println(" Role '" + roleName + "' created.");
         } else {
-             System.out.println("ℹ️ Role '" + roleName + "' already exists.");
+             System.out.println(" Role '" + roleName + "' already exists.");
         }
     }
 }

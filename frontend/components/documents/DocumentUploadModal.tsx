@@ -59,22 +59,22 @@ export const DocumentUploadModal = ({ isOpen, onClose, onUploadSuccess, token }:
 
     // --- TODO: Implement actual API call POST /api/users/me/documents ---
     try {
-    //   const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/users/me/documents`, {
-    //     method: 'POST',
-    //     headers: {
-    //       // 'Content-Type': 'multipart/form-data' is set automatically by browser with FormData
-    //       'Authorization': `Bearer ${token}`,
-    //     },
-    //     body: formData,
-    //   });
-    //   const result = await response.json();
-    //   if (!response.ok) {
-    //     throw new Error(result.message || "Failed to upload document.");
-    //   }
-    //   toast.success("Document uploaded successfully!");
-    //   onUploadSuccess(); // Refresh the list in the parent component
-    //   form.reset();
-    //   onClose(); // Close the modal
+      const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/users/me/documents`, {
+        method: 'POST',
+        headers: {
+          // 'Content-Type': 'multipart/form-data' is set automatically by browser with FormData
+          'Authorization': `Bearer ${token}`,
+        },
+        body: formData,
+      });
+      const result = await response.json();
+      if (!response.ok) {
+        throw new Error(result.message || "Failed to upload document.");
+      }
+      toast.success("Document uploaded successfully!");
+      onUploadSuccess(); // Refresh the list in the parent component
+      form.reset();
+      onClose(); // Close the modal
 
     // Mock success:
       await new Promise(resolve => setTimeout(resolve, 1500));

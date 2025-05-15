@@ -55,7 +55,7 @@ public class DocumentService {
         docInfo.setSize(file.getSize());
         docInfo.setFilePath(fileName); // Store the unique filename, not the full path for security/abstraction
         docInfo.setUploadedAt(LocalDateTime.now());
-        docInfo.setStatus(DocumentStatus.PENDING_VERIFICATION);
+        docInfo.setStatus(DocumentStatus.PENDING_APPROVAL);
 
         DocumentInfo savedDocInfo = documentInfoRepository.save(docInfo);
         log.info("Document metadata saved for user: {}, documentId: {}, file: {}", user.getId(), savedDocInfo.getId(), fileName);
@@ -85,7 +85,7 @@ public class DocumentService {
                 .orElseThrow(() -> new ResourceNotFoundException("Document not found with id: " + documentId + " for this user."));
 
         // Optional: Only allow deletion if PENDING_VERIFICATION
-        if (docInfo.getStatus() != DocumentStatus.PENDING_VERIFICATION) {
+        if (docInfo.getStatus() != DocumentStatus.PENDING_APPROVAL) {
             // throw new UnauthorizedOperationException("Cannot delete document that is not pending verification.");
              log.warn("User {} attempted to delete document {} with status {}", userEmail, documentId, docInfo.getStatus());
              // Depending on policy, either throw error or just do nothing. For now, let's allow it.
@@ -142,7 +142,7 @@ public DocumentInfoDTO updateDocumentStatus(String documentId, DocumentStatus ne
         // For now, we could log it or add it to a notes field if DocumentInfo had one.
         log.info("Document {} rejected by admin {} with reason: {}", documentId, adminUserEmail, rejectionReason);
         // docInfo.setRejectionReason(rejectionReason); // If you add this field to DocumentInfo model
-    } else if (newStatus == DocumentStatus.VERIFIED) {
+    } else if (newStatus == DocumentStatus.APPROVED) {
         // docInfo.setVerifiedAt(LocalDateTime.now()); // If you add this field
         // docInfo.setAdminVerifierId(admin.getId()); // If you add this field
         log.info("Document {} verified by admin {}", documentId, adminUserEmail);
@@ -183,7 +183,7 @@ public DocumentInfoDTO updateDocumentStatus(String documentId, DocumentStatus ne
 
     for (String requiredType : requiredTypes) {
         boolean foundAndVerified = userDocuments.stream()
-            .anyMatch(doc -> requiredType.equals(doc.getDocumentType()) && doc.getStatus() == DocumentStatus.VERIFIED);
+            .anyMatch(doc -> requiredType.equals(doc.getDocumentType()) && doc.getStatus() == DocumentStatus.APPROVED);
         if (!foundAndVerified) {
             return false; // A required document is missing or not verified
         }

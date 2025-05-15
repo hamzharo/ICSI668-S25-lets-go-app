@@ -21,6 +21,7 @@ import java.time.LocalDateTime;
 import java.util.Collections;
 import java.util.List;
 import java.util.Objects;
+import java.util.Optional;
 import java.util.stream.Collectors;
 
 @Service
@@ -89,6 +90,11 @@ public class RideService {
         // newRide.setCreatedAt(LocalDateTime.now());
         // newRide.setUpdatedAt(LocalDateTime.now());
         return convertToDto(savedRide);
+    }
+
+    public RideDTO getRideDetailsById(String rideId) {
+        Optional<Ride> results = rideRepository.findById(rideId);
+        return results.map(this::convertToDto).orElse(null);
     }
 
     public List<RideDTO> searchRides(String departureCity, String destinationCity, String departureState, String destinationState, LocalDateTime earliestDepartureTime) {

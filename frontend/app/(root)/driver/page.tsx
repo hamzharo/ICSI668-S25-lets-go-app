@@ -1,6 +1,6 @@
 // frontend/app/(root)/driver/dashboard/page.tsx
 import React from 'react';
-import DriverDashboard from '@/app/components/dashboards/DriverDashboard'; // Path to your DriverDashboard component
+import DriverDashboard from '@/components/dashboards/DriverDashboard';
 import { User } from '@/types'; // Path to your types
 // import { redirect } from 'next/navigation'; // For redirecting if necessary
 

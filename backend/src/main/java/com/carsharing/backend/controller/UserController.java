@@ -77,7 +77,7 @@ public class UserController {
              // IMPORTANT: Return a DTO here, not the raw User object to avoid exposing password hash
              User user = userData.get();
              // Example basic DTO (create this class)
-             UserProfileDTO profile = new UserProfileDTO(user.getId(), user.getName(), user.getEmail(), user.getRoles());
+             UserProfileDTO profile = new UserProfileDTO(user.getId(), user.getName(), user.getEmail(), user.getRoles(), user.getDriverStatus());
             return new ResponseEntity<>(profile, HttpStatus.OK);
         } else {
             // This case should theoretically not happen if the token is valid,
@@ -183,7 +183,7 @@ public class UserController {
         public String driverStatus; 
 
 
-        public UserProfileDTO(String id, String name, String email, List<String> roles) {
+        public UserProfileDTO(String id, String name, String email, List<String> roles, String driverStatus) {
             this.id = id;
             this.name = name;
             this.email = email;

@@ -43,8 +43,8 @@ const BookingCard = ({ booking, onCancelBooking, isCancelling }: BookingCardProp
   const rideData = booking.rideDetails; // This will be undefined if API call for ride details fails or is pending
   console.log("ride data in booking card is: ", rideData);
   
-  const totalCost = (rideData?.farePerSeat != null && booking.seatsBooked)
-    ? (rideData.farePerSeat * booking.seatsBooked).toFixed(2)
+  const totalCost = (rideData?.farePerSeat != null && booking.requestedSeats != null)
+    ? (rideData.farePerSeat * booking.requestedSeats).toFixed(2)
     : 'N/A';
 
   const formatDateSafe = (dateString: string | undefined, formatString: string = "eee, MMM d, yyyy 'at' h:mm a") => {
@@ -99,9 +99,9 @@ const BookingCard = ({ booking, onCancelBooking, isCancelling }: BookingCardProp
             <div className="flex items-center text-sm">
               <Users className="mr-2 h-4 w-4 text-orange-500 flex-shrink-0" />
               <span className="font-medium text-gray-700 dark:text-gray-300 mr-1">Seats:</span>
-              <span className="text-muted-foreground">{booking.seatsBooked}</span>
+              <span className="text-muted-foreground">{booking.requestedSeats}</span>
             </div>
-            {rideData.farePerSeat != null && (
+            {rideData.farePerSeat != null && booking.requestedSeats != null && (
                 <div className="flex items-center text-sm">
                     <DollarSign className="mr-2 h-4 w-4 text-green-500 flex-shrink-0" />
                     <span className="font-medium text-gray-700 dark:text-gray-300 mr-1">Total:</span>
