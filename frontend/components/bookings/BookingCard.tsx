@@ -8,8 +8,6 @@ import { Button } from "@/components/ui/button";
 import Link from 'next/link';
 import { MapPin, CalendarDays, Users, DollarSign, Info, Hourglass, CheckCircle, XCircle, Ban, ArrowRight } from 'lucide-react';
 import { format, isValid } from 'date-fns';
-// Badge import can be removed if getStatusProps is not used for badges anymore, or if status is not shown visually with Badge.
-// import { Badge } from '@/components/ui/badge'; // Only needed if getStatusProps is used to render a Badge
 
 interface BookingCardProps {
   booking: PassengerBooking;

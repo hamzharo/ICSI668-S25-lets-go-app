@@ -189,6 +189,7 @@ export interface DriverOfferedRide {
   updatedAt?: string;
   bookingRequests?: BookingRequestSummary[];
   confirmedBookingsCount?: number;
+  rideNotes?: string | null;
 }
 
 export interface RideUpdateFormValues {

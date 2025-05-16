@@ -141,9 +141,6 @@ const OfferRideForm = ({}: OfferRideFormProps) => {
   const onSubmit: SubmitHandler<RideCreationFormValues> = async (data) => {
     setIsLoading(true);
 
-    // Construct the payload for the API (RideCreationDTO)
-    // This must match the structure your backend expects for this endpoint
-    // and align with your RideCreationDTO type in types.ts
     const rideDataForApi: RideCreationDTO = {
       departureCity: data.departureCity,
       destinationCity: data.destinationCity,
