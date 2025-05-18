@@ -16,7 +16,6 @@ import { Pagination, PaginationContent, PaginationEllipsis, PaginationItem, Pagi
 
 const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8080';
 
-// --- TODO: Replace with actual API service calls ---
 interface PaginatedDocumentsResponse {
     content: AdminDocumentView[];
     totalPages: number;
@@ -26,22 +25,24 @@ interface PaginatedDocumentsResponse {
 }
 
 const fetchAllAdminDocumentsApi = async (
-    filters: DocumentFilterValues,
-    page: number, // 0-indexed for API
-    size: number,
-    token: string | null
-): Promise<PaginatedDocumentsResponse> => {
+  // Only status filter is supported by the current backend for /admin/all
+  statusFilter: DocumentStatus | 'ALL',
+  token: string | null
+): Promise<AdminDocumentView[]> => { // Expects an array directly
   if (!token) throw new Error("Authentication required.");
 
   const queryParams = new URLSearchParams();
-  if (filters.status && filters.status !== 'ALL') queryParams.append('status', filters.status);
-  // if (filters.userIdOrEmail) queryParams.append('userSearch', filters.userIdOrEmail); // Backend needs to handle 'userSearch' by ID or email
-  // if (filters.documentType !== 'ALL') queryParams.append('documentType', filters.documentType);
-  // queryParams.append('page', page.toString());
-  // queryParams.append('size', size.toString());
-  // queryParams.append('sort', 'uploadDate,desc'); // Example sorting
+  if (statusFilter && statusFilter !== 'ALL') {
+    queryParams.append('status', statusFilter);
+  }
 
-  const url = `${API_BASE_URL}/api/documents/admin/all?${queryParams.toString()}`; // Endpoint from brief was /api/users/admin/all
+  // The backend endpoint is /api/documents/admin/all
+  let url = `${API_BASE_URL}/api/documents/admin/all`;
+  const queryString = queryParams.toString();
+  if (queryString) {
+    url += `?${queryString}`;
+  }
+
   console.log(`API CALL: Fetching all admin documents with URL: ${url}`);
 
   const response = await fetch(url, {
@@ -51,46 +52,54 @@ const fetchAllAdminDocumentsApi = async (
 
   if(!response.ok) {
     let errorMessage = `Failed to fetch documents. Status: ${response.status} ${response.statusText}`;
+    let errorBodyText = '';
     try {
-        const errorResult = await response.json();
+        errorBodyText = await response.text();
+        const errorResult = JSON.parse(errorBodyText);
         errorMessage = errorResult.message || errorResult.error || errorMessage;
     } catch (e) {
-        errorMessage = (await response.text()) || errorMessage;
+        if (errorBodyText) {
+            errorMessage = `${errorMessage} - Response: ${errorBodyText.substring(0,300)}`;
+        }
+        console.warn("Response body was not valid JSON or read failed.", e);
     }
     console.error("API Error fetching documents:", errorMessage, response);
     throw new Error(errorMessage);
   }
 
+  // Expects an array directly from the backend
   const documentsArray: AdminDocumentView[] = await response.json();
 
   if (!Array.isArray(documentsArray)) {
     console.error("API Error: Expected an array of documents but received:", documentsArray);
     throw new Error("Received invalid data structure from API (expected array).");
   }
+
   console.log("API Success: Received document array (length):", documentsArray.length);
-
-  const simulatedResponse: PaginatedDocumentsResponse = {
-    content: documentsArray,        // All fetched documents are the content
-    totalPages: 1,                  // Since everything is fetched, there's only 1 page
-    totalElements: documentsArray.length, // Total is the length of the fetched array
-    currentPage: 0,                 // We are effectively on page 0
-    size: documentsArray.length,    // The size of this "page" is all elements
-  };
-
-  console.log("API Success: Simulated Paginated Response for Documents", simulatedResponse);
-  return simulatedResponse;
+  return documentsArray;
 };
 
-// Reusing viewDocumentFile from DocumentReviewPage (or move to a shared util)
-const viewDocumentFile = (documentId: string, fileName: string, token: string | null) => {
+const viewDocumentFile = (documentId: string, downloadFileName: string, token: string | null) => { // Renamed for clarity
     if (!token) { toast.error("Authentication required."); return; }
-    const fileUrl = `${API_BASE_URL}/api/documents/admin/${documentId}/file`; // Endpoint from brief was /api/users/admin/{documentId}/file
-    // window.open(fileUrl, '_blank');
-    // toast.info(`Attempting to open/download: ${fileName}`);
+    const fileUrl = `${API_BASE_URL}/api/documents/admin/${documentId}/file`;
+
     fetch(fileUrl, { headers: { 'Authorization': `Bearer ${token}` }})
     .then(res => {
       if (!res.ok) {
-        throw new Error(`Failed to download file: ${res.status} ${res.statusText}`);
+        // Try to get error message from headers or fallback
+         const errorMsgFromHeader = res.headers.get('X-Error-Message'); // If backend sets custom error header
+         if (errorMsgFromHeader) throw new Error(errorMsgFromHeader);
+
+        // Try to parse error from body if it's JSON
+        return res.text().then(text => {
+            try {
+                const errorJson = JSON.parse(text);
+                throw new Error(errorJson.message || errorJson.error || `Failed to download file: ${res.status} ${res.statusText}`);
+            } catch (e) {
+                 // If not JSON, or parsing failed, use the text or generic message
+                throw new Error(text || `Failed to download file: ${res.status} ${res.statusText}`);
+            }
+        });
       }
       return res.blob();
     })
@@ -98,98 +107,122 @@ const viewDocumentFile = (documentId: string, fileName: string, token: string | 
       const blobUrl = window.URL.createObjectURL(blob);
       const link = document.createElement('a');
       link.href = blobUrl;
-      // Try to set download attribute, otherwise open in new tab
-      link.setAttribute('download', fileName || `document_${documentId}`); // Suggest filename
-      link.target = '_blank'; // Fallback to opening in new tab
+      // Use the provided downloadFileName (which is originalFilename)
+      link.setAttribute('download', downloadFileName || `document_${documentId}`);
+      link.target = '_blank';
       document.body.appendChild(link);
       link.click();
       document.body.removeChild(link);
-      window.URL.revokeObjectURL(blobUrl); // Clean up
-      toast.info(`Opening/downloading: ${fileName}`);
+      window.URL.revokeObjectURL(blobUrl);
+      toast.info(`Opening/downloading: ${downloadFileName}`);
     })
     .catch(err => {
       console.error("File view/download error:", err);
-      toast.error(err.message || `Could not retrieve file ${fileName}`);
+      toast.error(err.message || `Could not retrieve file ${downloadFileName}`);
     });
 };
-// --- End TODO ---
 
 
 export default function AllDocumentsAdminPage() {
   const { user, token, isLoading: authLoading } = useAuth();
   const router = useRouter();
 
-  const [documents, setDocuments] = useState<AdminDocumentView[]>([]);
+  const [allFetchedDocuments, setAllFetchedDocuments] = useState<AdminDocumentView[]>([]); // Store all docs
+  const [displayedDocuments, setDisplayedDocuments] = useState<AdminDocumentView[]>([]); // For client-side filtering/searching if implemented
   const [isLoadingDocs, setIsLoadingDocs] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  
-  const [currentPage, setCurrentPage] = useState(0); // 0-indexed for API
-  const [totalPages, setTotalPages] = useState(0);
-  const [totalElements, setTotalElements] = useState(0);
-  const itemsPerPage = 10; // Or make this configurable
 
+  // Filters state - only 'status' will be used for API call.
+  // 'userIdOrEmail' and 'documentType' can be used for client-side filtering if desired.
   const [filters, setFilters] = useState<DocumentFilterValues>({
-    status: 'ALL',
-    userIdOrEmail: '',
-    documentType: 'ALL',
+    status: 'ALL', // This is used for the API call
+    userIdOrEmail: '', // For potential client-side filtering
+    documentType: 'ALL', // For potential client-side filtering
   });
 
-  const loadDocuments = useCallback(async (pageToLoad: number) => {
+  const loadDocuments = useCallback(async () => {
     if (!token || !user?.roles?.includes('ADMIN')) {
-      if(!authLoading) setIsLoadingDocs(false);
+      if (!authLoading) setIsLoadingDocs(false);
       return;
     }
     setIsLoadingDocs(true);
     setError(null);
     try {
-      const response = await fetchAllAdminDocumentsApi(filters, pageToLoad, itemsPerPage, token);
-      setDocuments(response.content);
-      setTotalPages(response.totalPages);
-      setCurrentPage(response.currentPage); // Should match pageToLoad
-      setTotalElements(response.totalElements);
+      // Only pass the status filter to the API
+      const fetchedDocs = await fetchAllAdminDocumentsApi(filters.status, token);
+      setAllFetchedDocuments(fetchedDocs);
+      // Initially, displayed documents are all fetched documents (before client-side filtering)
+      // setDisplayedDocuments(fetchedDocs); // We'll apply client-side filters below
     } catch (err: any) {
       console.error("Failed to load all documents for admin:", err);
       setError(err.message || "Could not load documents.");
       toast.error(err.message || "Failed to load documents.");
+      setAllFetchedDocuments([]); // Clear on error
+      // setDisplayedDocuments([]);
     } finally {
       setIsLoadingDocs(false);
     }
-  }, [token, user, authLoading, filters]); // filters is a dependency now
+  }, [token, user, authLoading, filters.status]); // Only filters.status affects API call
 
+  // Effect to load documents when component mounts or auth/status filter changes
   useEffect(() => {
-    if (!authLoading && user?.roles?.includes('ADMIN')) {
-      loadDocuments(currentPage); // Load current page when filters or user changes
-    } else if (!authLoading && !user?.roles?.includes('ADMIN')) {
-      toast.error("Access Denied to /all-documents. Administrator role required.");
-      router.replace("/");
-      setIsLoadingDocs(false);
+    if (!authLoading) {
+      if (user?.roles?.includes('ADMIN') && token) {
+        loadDocuments();
+      } else {
+        toast.error("Access Denied. Administrator role required or session invalid.");
+        router.replace("/");
+        setIsLoadingDocs(false);
+      }
     }
-  }, [authLoading, user, filters, loadDocuments, router, currentPage]); // currentPage added
+  }, [authLoading, user, token, loadDocuments, router]);
+
+
+  // Effect for client-side filtering based on userIdOrEmail and documentType
+  useEffect(() => {
+    let filtered = [...allFetchedDocuments];
+
+    if (filters.userIdOrEmail) {
+      const searchTerm = filters.userIdOrEmail.toLowerCase();
+      filtered = filtered.filter(doc =>
+        doc.userId.toLowerCase().includes(searchTerm) ||
+        doc.userEmail.toLowerCase().includes(searchTerm) ||
+        doc.userFirstName?.toLowerCase().includes(searchTerm) ||
+        doc.userLastName?.toLowerCase().includes(searchTerm)
+      );
+    }
+
+    if (filters.documentType && filters.documentType !== 'ALL') {
+      filtered = filtered.filter(doc => doc.documentType === filters.documentType);
+    }
+    // Note: The 'status' filter is already applied by the API call.
+    // If you want to further filter by status client-side from an 'ALL' API fetch,
+    // you'd fetch with status='ALL' and then filter here.
+    // But since /admin/all already takes a status, this client-side status filter isn't needed
+    // if filters.status is passed to the API.
+
+    setDisplayedDocuments(filtered);
+  }, [allFetchedDocuments, filters.userIdOrEmail, filters.documentType]);
+
 
   const handleFilterChange = (newFilters: DocumentFilterValues) => {
-    setCurrentPage(0); // Reset to first page when filters change
+    // The API call will re-trigger via loadDocuments if newFilters.status changes (due to useEffect dependency)
+    // Other filter changes (userIdOrEmail, documentType) will trigger client-side filtering via the second useEffect
     setFilters(newFilters);
-    // The useEffect will trigger loadDocuments due to 'filters' dependency change
-  };
-
-  const handlePageChange = (newPage: number) => {
-    if (newPage >= 0 && newPage < totalPages) {
-      setCurrentPage(newPage);
-      // The useEffect will trigger loadDocuments due to 'currentPage' dependency change
-    }
   };
 
   const handleViewFile = (documentId: string, fileName: string) => {
     viewDocumentFile(documentId, fileName, token);
   };
 
-
-  if (authLoading || (!user && isLoadingDocs && documents.length === 0)) {
+  // --- Loading, Access Denied, Error States (similar to before) ---
+  if (authLoading || (isLoadingDocs && displayedDocuments.length === 0 && allFetchedDocuments.length === 0)) {
     return <div className="flex flex-grow items-center justify-center h-full"><Loader2 className="h-12 w-12 animate-spin text-primary" /></div>;
   }
 
   if (!user || !user?.roles?.includes('ADMIN') ) {
-    return (
+    // ... access denied JSX ...
+     return (
         <div className="flex flex-col flex-grow items-center justify-center p-6 text-center">
             <ShieldAlert className="h-16 w-16 text-destructive mb-4" />
             <h2 className="text-2xl font-semibold text-destructive mb-2">Access Denied</h2>
@@ -199,12 +232,13 @@ export default function AllDocumentsAdminPage() {
   }
 
   if (error && !isLoadingDocs) {
+    // ... error JSX ...
     return (
       <div className="flex flex-col flex-grow items-center justify-center p-6 text-center">
         <Frown className="h-16 w-16 text-destructive mb-4" />
         <h2 className="text-2xl font-semibold text-destructive mb-2">Error Loading Documents</h2>
         <p className="text-muted-foreground max-w-md mb-6">{error}</p>
-        <Button onClick={() => loadDocuments(currentPage)} variant="outline">Try Again</Button>
+        <Button onClick={loadDocuments} variant="outline">Try Again</Button>
       </div>
     );
   }
@@ -216,64 +250,39 @@ export default function AllDocumentsAdminPage() {
           <Files className="mr-3 h-8 w-8 text-blue-500" /> All Submitted Documents
         </h1>
         <p className="text-lg text-muted-foreground dark:text-gray-400 mt-1">
-          Browse, search, and filter all documents in the system.
+          Browse and filter all documents in the system.
         </p>
       </header>
 
+      {/* DocumentFilters component can still exist, but only its 'status' field will affect the API call.
+          Other fields will be used for client-side filtering. */}
       <DocumentFilters initialFilters={filters} onFilterChange={handleFilterChange} />
 
       <Separator className="my-4 md:my-6" />
 
+      {/* Pass displayedDocuments (client-side filtered) to the table */}
       <AllDocumentsTable
-        documents={documents}
+        documents={displayedDocuments}
         isLoading={isLoadingDocs}
         onViewFile={handleViewFile}
       />
 
-      {/* Pagination Controls */}
-      {totalPages > 1 && !isLoadingDocs && (
-        <div className="mt-6 flex justify-center">
-          <Pagination>
-            <PaginationContent>
-              <PaginationItem>
-                <PaginationPrevious
-                  href="#"
-                  onClick={(e) => { e.preventDefault(); handlePageChange(currentPage - 1); }}
-                  className={currentPage === 0 ? "pointer-events-none opacity-50" : undefined}
-                />
-              </PaginationItem>
-              {/* Simple pagination display: Current page and total. Could be more complex. */}
-              {[...Array(totalPages).keys()].map(pageNumber => (
-                // Conditionally render page numbers or ellipsis for many pages
-                (pageNumber === 0 || pageNumber === totalPages - 1 || Math.abs(pageNumber - currentPage) <= 1 || (currentPage <=2 && pageNumber <=3) || (currentPage >= totalPages -3 && pageNumber >= totalPages -4) ) ? (
-                    <PaginationItem key={pageNumber}>
-                    <PaginationLink
-                        href="#"
-                        onClick={(e) => { e.preventDefault(); handlePageChange(pageNumber); }}
-                        isActive={currentPage === pageNumber}
-                    >
-                        {pageNumber + 1}
-                    </PaginationLink>
-                    </PaginationItem>
-                ) : ( (Math.abs(pageNumber - currentPage) === 2 && totalPages > 5 && !((currentPage <=2 && pageNumber <=3) || (currentPage >= totalPages -3 && pageNumber >= totalPages -4))) || (pageNumber === 1 && currentPage > 3 && totalPages > 5) || (pageNumber === totalPages -2 && currentPage < totalPages-4 && totalPages > 5)  )  ? ( // Show ellipsis
-                    <PaginationItem key={`ellipsis-${pageNumber}`}>
-                        <PaginationEllipsis />
-                    </PaginationItem>
-                ) : null
-              ))}
-              <PaginationItem>
-                <PaginationNext
-                  href="#"
-                  onClick={(e) => { e.preventDefault(); handlePageChange(currentPage + 1); }}
-                  className={currentPage === totalPages - 1 ? "pointer-events-none opacity-50" : undefined}
-                />
-              </PaginationItem>
-            </PaginationContent>
-          </Pagination>
-        </div>
+      {/* Remove Pagination Controls as backend doesn't support it */}
+      {!isLoadingDocs && displayedDocuments.length > 0 && (
+        <p className="text-center text-sm text-muted-foreground mt-2">
+          Showing {displayedDocuments.length} document(s) matching criteria.
+        </p>
       )}
-       {!isLoadingDocs && documents.length > 0 && <p className="text-center text-sm text-muted-foreground mt-2">Showing {documents.length} of {totalElements} documents.</p>}
-
+      {!isLoadingDocs && allFetchedDocuments.length > 0 && displayedDocuments.length === 0 && filters.userIdOrEmail && (
+         <p className="text-center text-sm text-muted-foreground mt-2">
+          No documents found matching all filter criteria. Fetched {allFetchedDocuments.length} based on status filter.
+        </p>
+      )}
+       {!isLoadingDocs && allFetchedDocuments.length === 0 && (
+         <p className="text-center text-sm text-muted-foreground mt-2">
+          No documents found.
+        </p>
+      )}
     </div>
   );
 }

@@ -11,6 +11,7 @@ import DocumentActionDialog from './DocumentActionDialog'; // Import the dialog
 import { format } from 'date-fns';
 import { Eye, CheckCircle, XCircle, MoreHorizontal, Download, UserCircle, FileText, CalendarIcon, AlertTriangle, ClockIcon } from 'lucide-react';
 import { toast } from 'react-toastify';
+import { Info } from 'lucide-react';
 
 interface DocumentReviewTableProps {
   documents: AdminDocumentView[];
@@ -21,11 +22,11 @@ interface DocumentReviewTableProps {
 
 const getStatusBadgeVariant = (status: AdminDocumentView['status']): "default" | "destructive" | "secondary" | "outline" | "success" => {
     switch (status) {
-      case 'VERIFIED':
+      case 'APPROVED':
         return "success";
       case 'REJECTED':
         return "destructive";
-      case 'PENDING_VERIFICATION':
+      case 'PENDING_APPROVAL':
         return "secondary";
       default:
         return "outline";
@@ -34,11 +35,11 @@ const getStatusBadgeVariant = (status: AdminDocumentView['status']): "default" |
 
 const getStatusIcon = (status: AdminDocumentView['status']) => {
     switch (status) {
-      case 'VERIFIED':
+      case 'APPROVED':
         return <CheckCircle className="h-4 w-4 mr-1.5 text-green-600" />;
       case 'REJECTED':
         return <AlertTriangle className="h-4 w-4 mr-1.5 text-red-600" />;
-      case 'PENDING_VERIFICATION':
+      case 'PENDING_APPROVAL':
         return <ClockIcon className="h-4 w-4 mr-1.5 text-yellow-600" />;
       default:
         return null;
@@ -151,11 +152,11 @@ const DocumentReviewTable = ({ documents, isLoading, onUpdateStatus, onViewFile 
                     </DropdownMenuTrigger>
                     <DropdownMenuContent align="end" className="w-48">
                       <DropdownMenuLabel>Actions</DropdownMenuLabel>
-                      <DropdownMenuItem onClick={() => onViewFile(doc.id, doc.fileName)}>
+                      <DropdownMenuItem onClick={() => onViewFile(doc.id, doc.originalFilename)}>
                         <Download className="mr-2 h-4 w-4" /> View/Download File
                       </DropdownMenuItem>
                       <DropdownMenuSeparator />
-                      {doc.status === 'PENDING_VERIFICATION' && (
+                      {doc.status === 'PENDING_APPROVAL' && (
                         <>
                           <DropdownMenuItem onClick={() => openActionDialog(doc, 'VERIFY')} className="text-green-600 focus:bg-green-50 focus:text-green-700 dark:focus:bg-green-700/20 dark:focus:text-green-400">
                             <CheckCircle className="mr-2 h-4 w-4" /> Approve
@@ -165,7 +166,7 @@ const DocumentReviewTable = ({ documents, isLoading, onUpdateStatus, onViewFile 
                           </DropdownMenuItem>
                         </>
                       )}
-                      {doc.status !== 'PENDING_VERIFICATION' && (
+                      {doc.status !== 'PENDING_APPROVAL' && (
                         <DropdownMenuItem disabled>
                             <Info className="mr-2 h-4 w-4"/> No pending actions
                         </DropdownMenuItem>

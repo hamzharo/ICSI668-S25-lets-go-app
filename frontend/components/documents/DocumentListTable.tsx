@@ -8,6 +8,7 @@ import { Button } from "@/components/ui/button";
 import { DocumentMetadata, DOCUMENT_TYPES } from '@/types'; // Assuming types are in @/types
 import { Trash2, Eye, AlertTriangle, CheckCircle2, Clock } from 'lucide-react'; // Icons
 import { format } from 'date-fns'; // For date formatting: npm install date-fns
+import { Loader2 } from 'lucide-react';
 
 interface DocumentListTableProps {
   documents: DocumentMetadata[];
@@ -40,11 +41,11 @@ export const DocumentListTable = ({ documents, onDelete, isLoading }: DocumentLi
 
   const getStatusBadgeVariant = (status: DocumentMetadata['status']): "default" | "destructive" | "secondary" | "outline" => {
     switch (status) {
-      case 'VERIFIED':
+      case 'APPROVED':
         return "default"; // Greenish, or use a custom class for success
       case 'REJECTED':
         return "destructive"; // Red
-      case 'PENDING_VERIFICATION':
+      case 'PENDING_APPROVAL':
         return "secondary"; // Yellowish/Orangeish
       default:
         return "outline";
@@ -53,11 +54,11 @@ export const DocumentListTable = ({ documents, onDelete, isLoading }: DocumentLi
 
   const getStatusIcon = (status: DocumentMetadata['status']) => {
     switch (status) {
-      case 'VERIFIED':
+      case 'APPROVED':
         return <CheckCircle2 className="h-4 w-4 mr-1 text-green-600" />;
       case 'REJECTED':
         return <AlertTriangle className="h-4 w-4 mr-1 text-red-600" />;
-      case 'PENDING_VERIFICATION':
+      case 'PENDING_APPROVAL':
         return <Clock className="h-4 w-4 mr-1 text-yellow-600" />;
       default:
         return null;

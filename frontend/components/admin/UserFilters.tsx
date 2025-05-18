@@ -65,7 +65,7 @@ const UserFilters = ({ initialFilters, onFilterChange }: UserFiltersProps) => {
           <Label htmlFor="role" className="text-sm font-medium">Role</Label>
           <Select name="role" value={filters.role} onValueChange={(value) => handleSelectChange('role', value)}>
             <SelectTrigger id="role"><SelectValue placeholder="Filter by role..." /></SelectTrigger>
-            <SelectContent>
+            <SelectContent className='bg-white'>
               <SelectItem value="ALL">All Roles</SelectItem>
               <SelectItem value="PASSENGER">Passenger</SelectItem>
               <SelectItem value="DRIVER">Driver</SelectItem>
@@ -77,7 +77,7 @@ const UserFilters = ({ initialFilters, onFilterChange }: UserFiltersProps) => {
           <Label htmlFor="status" className="text-sm font-medium">Status</Label>
           <Select name="status" value={filters.status} onValueChange={(value) => handleSelectChange('status', value)}>
             <SelectTrigger id="status"><SelectValue placeholder="Filter by status..." /></SelectTrigger>
-            <SelectContent>
+            <SelectContent className='bg-white'>
               {statusOptions.map(opt => (
                 <SelectItem key={opt.value} value={opt.value}>{opt.label}</SelectItem>
               ))}

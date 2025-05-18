@@ -94,7 +94,7 @@ const UserTable = ({ users, isLoading, onUserAction, isActionProcessing }: UserT
                           {anyProcessing ? <Loader2 className="h-4 w-4 animate-spin" /> : <MoreHorizontal className="h-4 w-4" />}
                         </Button>
                       </DropdownMenuTrigger>
-                      <DropdownMenuContent align="end" className="w-56">
+                      <DropdownMenuContent align="end" className="w-56 bg-white">
                         <DropdownMenuLabel>Manage User</DropdownMenuLabel>
                         <DropdownMenuItem onClick={() => openUserActionDialog(user, 'CHANGE_ROLE')}>
                           <UserCog className="mr-2 h-4 w-4" /> Change Role

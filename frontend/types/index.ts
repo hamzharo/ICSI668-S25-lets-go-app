@@ -6,7 +6,7 @@ export type DriverStatus = 'NONE' | 'PENDING_APPROVAL' | 'APPROVED' | 'REJECTED'
 
 export type AccountStatus = 'ACTIVE' | 'SUSPENDED' | 'PENDING_EMAIL_VERIFICATION' | 'DEACTIVATED';
 
-export type DocumentStatus = 'PENDING_VERIFICATION' | 'VERIFIED' | 'REJECTED'| 'NONE';
+export type DocumentStatus = 'PENDING_APPROVAL' | 'APPROVED' | 'REJECTED'| 'NONE';
 
 export type RideStatus =
   | 'SCHEDULED'
@@ -56,10 +56,13 @@ export interface User {
 
 export interface DocumentMetadata {
   id: string;
-  fileName: string;
-  documentType: keyof typeof DOCUMENT_TYPES;
+  documentType: keyof typeof DOCUMENT_TYPES; 
+  originalFilename: string; 
+  contentType?: string;      
+  // size: number;          // From DTO (optional on frontend if not used for display)
+  // filePath: string;      // From DTO (internal path, maybe not needed directly in UI models)
+  uploadedAt: string;       
   status: DocumentStatus;
-  uploadDate: string;
   rejectionReason?: string | null;
 }
 
@@ -78,7 +81,7 @@ export interface AdminDocumentView extends DocumentMetadata {
 
 
 export interface DocumentStatusUpdatePayload {
-  newStatus: 'VERIFIED' | 'REJECTED';
+  newStatus: 'APPROVED' | 'REJECTED';
   rejectionReason?: string;
 }
 

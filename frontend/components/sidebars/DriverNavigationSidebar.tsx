@@ -124,7 +124,7 @@ const DriverNavigationSidebar = ({ initialUser }: DriverNavigationSidebarProps) 
     { value: "profile-account", triggerLabel: "Profile & Account", triggerIcon: UserCog, items: [
         { href: '/driver/profile-settings/complete-account', icon: UserCog, label: 'Complete Account' },
         { href: '/driver/profile-settings/edit-profile', icon: UserCog, label: 'Edit Profile' },
-        { href: '/driver/profile-settings/upload-documents', icon: FileUp, label: 'Upload Documents' },
+        { href: '/profile-settings/upload-documents', icon: FileUp, label: 'Upload Documents' },
     ]},
     { value: "general", triggerLabel: "General", triggerIcon: Inbox, items: [
         { href: '/driver/earnings', icon: DollarSign, label: 'Earnings' },

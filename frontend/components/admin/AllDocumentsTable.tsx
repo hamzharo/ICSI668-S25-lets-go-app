@@ -2,7 +2,7 @@
 'use client';
 
 import React from 'react';
-import { AdminDocumentView } from '@/types'; // Reusing AdminDocumentView
+import { AdminDocumentView, DOCUMENT_TYPES } from '@/types'; // Reusing AdminDocumentView
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow, TableCaption } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -22,18 +22,18 @@ interface AllDocumentsTableProps {
 // Reusing status styling functions from DocumentReviewTable (or move to a shared util)
 const getStatusBadgeVariant = (status: AdminDocumentView['status']): "default" | "destructive" | "secondary" | "outline" | "success" => {
     switch (status) {
-      case 'VERIFIED': return "success";
+      case 'APPROVED': return "success";
       case 'REJECTED': return "destructive";
-      case 'PENDING_VERIFICATION': return "secondary";
+      case 'PENDING_APPROVAL': return "secondary";
       default: return "outline";
     }
 };
 
 const getStatusIcon = (status: AdminDocumentView['status']) => {
     switch (status) {
-      case 'VERIFIED': return <CheckCircle className="h-4 w-4 mr-1.5 text-green-600" />;
+      case 'APPROVED': return <CheckCircle className="h-4 w-4 mr-1.5 text-green-600" />;
       case 'REJECTED': return <AlertTriangle className="h-4 w-4 mr-1.5 text-red-600" />;
-      case 'PENDING_VERIFICATION': return <ClockIcon className="h-4 w-4 mr-1.5 text-yellow-600" />;
+      case 'PENDING_APPROVAL': return <ClockIcon className="h-4 w-4 mr-1.5 text-yellow-600" />;
       default: return <Info className="h-4 w-4 mr-1.5 text-gray-500"/>;
     }
 }
@@ -116,15 +116,16 @@ const AllDocumentsTable = ({ documents, isLoading, onViewFile }: AllDocumentsTab
               <TableCell className="px-4 py-3">
                 <div className="flex items-center">
                     <FileText className="h-4 w-4 mr-1.5 text-muted-foreground flex-shrink-0"/>
-                    {doc.documentType.replace('_', ' ').split(' ').map(word => word.charAt(0).toUpperCase() + word.slice(1).toLowerCase()).join(' ')}
+                    {/* {doc.documentType.replace('_', ' ').split(' ').map(word => word.charAt(0).toUpperCase() + word.slice(1).toLowerCase()).join(' ')} */}
+                    {DOCUMENT_TYPES[doc.documentType] || doc.documentType.replace('_', ' ').split(' ').map(word => 
+                      word.charAt(0).toUpperCase() + word.slice(1).toLowerCase()).join(' ')}
                 </div>
               </TableCell>
               <TableCell className="px-4 py-3 truncate max-w-xs" title={doc.originalFilename}>{doc.originalFilename}</TableCell>
               <TableCell className="px-4 py-3">
                   <div className="flex items-center text-xs text-muted-foreground">
                       <CalendarIcon className="h-4 w-4 mr-1.5 flex-shrink-0"/>
-                      {/* {format(new Date(doc.uploadDate), "dd MMM yyyy, HH:mm")} */}
-                      {doc.uploadedAt}
+                      {doc.uploadedAt ? format(new Date(doc.uploadedAt), "dd MMM yyyy, HH:mm") : 'N/A'}
                   </div>
               </TableCell>
               <TableCell className="px-4 py-3">
@@ -145,7 +146,7 @@ const AllDocumentsTable = ({ documents, isLoading, onViewFile }: AllDocumentsTab
                     </Button>
                   </DropdownMenuTrigger>
                   <DropdownMenuContent align="end">
-                    <DropdownMenuItem onClick={() => onViewFile(doc.id, doc.fileName)}>
+                    <DropdownMenuItem onClick={() => onViewFile(doc.id, doc.originalFilename)}>
                       <Download className="mr-2 h-4 w-4" /> View/Download File
                     </DropdownMenuItem>
                     {/* Add other actions if needed, e.g., link to user profile, view document details modal */}

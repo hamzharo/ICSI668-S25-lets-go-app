@@ -53,7 +53,7 @@ const DocumentActionDialog = ({
     setError('');
 
     const payload: DocumentStatusUpdatePayload = {
-      newStatus: actionType === 'VERIFY' ? 'VERIFIED' : 'REJECTED',
+      newStatus: actionType === 'VERIFY' ? 'APPROVED' : 'REJECTED',
       ...(actionType === 'REJECT' && { rejectionReason: rejectionReason.trim() }),
     };
     await onSubmit(payload); // Parent will close dialog on success if needed

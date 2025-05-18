@@ -1,13 +1,13 @@
 // frontend/app/(root)/profile-settings/upload-documents/components/DocumentUploadModal.tsx
 'use client';
 
-import React, { useState } from 'react';
+import React, { useState, useMemo } from 'react'; // Added useMemo
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger, DialogClose } from "@/components/ui/dialog";
+import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger, DialogClose } from "@/components/ui/dialog"; // DialogTrigger and DialogClose are imported but not used. Consider removing if not needed.
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { DOCUMENT_TYPES, DocumentTypeValue } from '@/types'; // Import document types
@@ -49,6 +49,22 @@ export const DocumentUploadModal = ({ isOpen, onClose, onUploadSuccess, token }:
     },
   });
 
+  // Transform DOCUMENT_TYPES object into an array suitable for the Select component
+  // It's assumed DOCUMENT_TYPES is an object like { KEY: "Label", ... }
+  // e.g., { DRIVING_LICENSE: "Driving License", ... }
+  const documentTypeOptions = useMemo(() => {
+    // Assuming DOCUMENT_TYPES is an object like:
+    // { DRIVING_LICENSE: "Driving License", VEHICLE_REGISTRATION: "Vehicle Registration", ... }
+    // Object.entries(DOCUMENT_TYPES) will produce:
+    // [ ["DRIVING_LICENSE", "Driving License"], ["VEHICLE_REGISTRATION", "Vehicle Registration"], ... ]
+    // We map this to an array of { value: string, label: string } objects
+    return Object.entries(DOCUMENT_TYPES).map(([value, label]) => ({
+      value: value, // e.g., "DRIVING_LICENSE"
+      label: label, // e.g., "Driving License"
+    }));
+  }, []); // DOCUMENT_TYPES is imported, so it's stable. Empty dependency array is fine.
+
+
   const onSubmit = async (data: UploadFormValues) => {
     setIsLoading(true);
     const formData = new FormData();
@@ -57,7 +73,6 @@ export const DocumentUploadModal = ({ isOpen, onClose, onUploadSuccess, token }:
 
     console.log("Uploading document:", data.documentType, data.file[0].name);
 
-    // --- TODO: Implement actual API call POST /api/users/me/documents ---
     try {
       const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/users/me/documents`, {
         method: 'POST',
@@ -68,34 +83,42 @@ export const DocumentUploadModal = ({ isOpen, onClose, onUploadSuccess, token }:
         body: formData,
       });
       const result = await response.json();
+
       if (!response.ok) {
         throw new Error(result.message || "Failed to upload document.");
       }
+
       toast.success("Document uploaded successfully!");
       onUploadSuccess(); // Refresh the list in the parent component
       form.reset();
       onClose(); // Close the modal
 
-    // Mock success:
+      // --- POTENTIAL ISSUE: Mock success block ---
+      // The following block seems to be a leftover mock implementation.
+      // If the API call above is the intended live behavior, this mock block
+      // will execute *after* a successful API call, leading to double toasts,
+      // double callbacks, etc. This should likely be removed or conditionally executed.
+      /*
       await new Promise(resolve => setTimeout(resolve, 1500));
       toast.success(`Mock: ${data.documentType} uploaded successfully!`);
       onUploadSuccess();
       form.reset();
       onClose();
+      */
+      // --- End potential issue ---
 
     } catch (error: any) {
       toast.error(error.message || "An error occurred while uploading document.");
     } finally {
       setIsLoading(false);
     }
-    // --- End TODO ---
   };
 
   if (!isOpen) return null;
 
   return (
     <Dialog open={isOpen} onOpenChange={(open) => !open && onClose()}>
-      <DialogContent className="sm:max-w-[425px]">
+      <DialogContent className="sm:max-w-[425px] bg-white">
         <DialogHeader>
           <DialogTitle>Upload New Document</DialogTitle>
           <DialogDescription>
@@ -103,7 +126,7 @@ export const DocumentUploadModal = ({ isOpen, onClose, onUploadSuccess, token }:
           </DialogDescription>
         </DialogHeader>
         <Form {...form}>
-          <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6 py-4">
+          <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6 py-4 bg-white">
             <FormField
               control={form.control}
               name="documentType"
@@ -116,10 +139,11 @@ export const DocumentUploadModal = ({ isOpen, onClose, onUploadSuccess, token }:
                         <SelectValue placeholder="Select document type" />
                       </SelectTrigger>
                     </FormControl>
-                    <SelectContent>
-                      {DOCUMENT_TYPES.map((docType) => (
-                        <SelectItem key={docType.value} value={docType.value}>
-                          {docType.label}
+                    <SelectContent className='bg-white'>
+                      {/* Iterate over the transformed documentTypeOptions array */}
+                      {documentTypeOptions.map((docTypeOption) => (
+                        <SelectItem key={docTypeOption.value} value={docTypeOption.value}>
+                          {docTypeOption.label}
                         </SelectItem>
                       ))}
                     </SelectContent>
@@ -131,7 +155,7 @@ export const DocumentUploadModal = ({ isOpen, onClose, onUploadSuccess, token }:
             <FormField
               control={form.control}
               name="file"
-              render={({ field: { onChange, value, ...restField } }) => ( // Destructure field to handle file input
+              render={({ field: { onChange, value, ...restField } }) => (
                 <FormItem>
                   <FormLabel>Document File</FormLabel>
                   <FormControl>

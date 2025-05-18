@@ -147,7 +147,7 @@ const DriverDashboard = ({ initialUser: initialDashboardUser }: DriverDashboardP
               </Button>
             </CardFooter>
           </Card>
-          <Card className="hover:shadow-lg transition-shadow duration-300 flex flex-col">
+          {/* <Card className="hover:shadow-lg transition-shadow duration-300 flex flex-col">
             <CardHeader className="pb-2 text-center">
               <CardTitle className="text-2xl font-semibold">Quick Action</CardTitle>
               <CardDescription className="pt-1">Instantly access key features.</CardDescription>
@@ -158,7 +158,7 @@ const DriverDashboard = ({ initialUser: initialDashboardUser }: DriverDashboardP
               </Button>
             </CardContent>
             <CardFooter className="pt-3 justify-center"><p className="text-xs text-muted-foreground text-center">e.g., View map, start predefined route</p></CardFooter>
-          </Card>
+          </Card> */}
           <Card className="hover:shadow-lg transition-shadow duration-300 flex flex-col">
             <CardHeader className="pb-4">
               <div className="flex items-center justify-between">

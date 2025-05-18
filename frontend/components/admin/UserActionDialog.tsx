@@ -60,7 +60,7 @@ const UserActionDialog = ({
                 <SelectTrigger id="newRole" className="w-full">
                   <SelectValue placeholder="Select new role..." />
                 </SelectTrigger>
-                <SelectContent>
+                <SelectContent className='bg-white'>
                   <SelectItem value="PASSENGER">Passenger</SelectItem>
                   <SelectItem value="DRIVER">Driver</SelectItem>
                   <SelectItem value="ADMIN">Admin</SelectItem>
@@ -117,7 +117,7 @@ const UserActionDialog = ({
 
   return (
     <Dialog open={isOpen} onOpenChange={(openState) => !openState && onClose()}>
-      <DialogContent className="sm:max-w-md">
+      <DialogContent className="sm:max-w-md bg-white">
         <DialogHeader>
           <DialogTitle className="flex items-center">
             <dialogContent.Icon className={`mr-2 h-6 w-6 ${dialogContent.colorClass}`} />

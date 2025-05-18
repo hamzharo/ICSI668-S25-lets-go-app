@@ -15,7 +15,6 @@ import { useRouter } from 'next/navigation';
 
 const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8080';
 
-// --- TODO: Replace with actual API service calls ---
 const fetchAdminDocumentsApi = async (filterStatus: DocumentStatus | 'ALL', token: string | null): 
 Promise<AdminDocumentView[]> => {
   if (!token) throw new Error("Authentication required.");
@@ -70,26 +69,19 @@ const updateDocumentStatusApi = async (documentId: string, payload: DocumentStat
 
   console.log(`API CALL: Updating document ${documentId} status to ${payload.newStatus}, Reason: ${payload.rejectionReason}`);
 
-  // --- FIX: Construct URL and Query Params correctly ---
-  // Backend Controller base: /api/documents, Endpoint: /admin/{documentId}/status
   const url = `${API_BASE_URL}/api/documents/admin/${documentId}/status`;
   const queryParams = new URLSearchParams({ newStatus: payload.newStatus });
   if (payload.rejectionReason) {
     queryParams.append('rejectionReason', payload.rejectionReason);
   }
 
-  // --- FIX: Make the actual fetch call ---
   const response = await fetch(`${url}?${queryParams.toString()}`, {
     method: 'PUT', // Method is PUT
     headers: {
         'Authorization': `Bearer ${token}`,
-        // Content-Type might not be needed for PUT with query params, but can be added if required by backend
-        // 'Content-Type': 'application/json' // Only if sending a JSON body
     }
-    // No body needed as data is in query params per backend code
   });
 
-  // --- FIX: Improved error handling ---
    if (!response.ok) {
     let errorMessage = `Failed to update document status. Status: ${response.status} ${response.statusText}`;
     let errorBodyText = '';
@@ -107,13 +99,11 @@ const updateDocumentStatusApi = async (documentId: string, payload: DocumentStat
     throw new Error(errorMessage);
   }
 
-  // --- FIX: Parse and return the updated document ---
   const updatedDocument: AdminDocumentView = await response.json();
   console.log(`API Success: Document ${documentId} status updated.`);
   return updatedDocument;
 };
 
-// Function to trigger file download/view
 const viewDocumentFile = (documentId: string, fileName: string, token: string | null) => {
   if (!token) {
       toast.error("Authentication required to view file.");
@@ -157,9 +147,10 @@ const viewDocumentFile = (documentId: string, fileName: string, token: string | 
 
 const DocumentStatusOptions: Array<{ value: DocumentStatus | 'ALL'; label: string }> = [
     { value: 'ALL', label: 'All Statuses' },
-    { value: 'PENDING_VERIFICATION', label: 'Pending Verification' },
-    { value: 'VERIFIED', label: 'Verified' },
+    { value: 'PENDING_APPROVAL', label: 'Pending Approval' },
+    { value: 'APPROVED', label: 'Approved' },
     { value: 'REJECTED', label: 'Rejected' },
+    { value: 'NONE', label: 'None' },
 ];
 
 
@@ -170,7 +161,7 @@ export default function DocumentReviewPage() {
   const [documents, setDocuments] = useState<AdminDocumentView[]>([]);
   const [isLoadingDocs, setIsLoadingDocs] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const [statusFilter, setStatusFilter] = useState<DocumentStatus | 'ALL'>('PENDING_VERIFICATION'); // Default filter
+  const [statusFilter, setStatusFilter] = useState<DocumentStatus | 'ALL'>('PENDING_APPROVAL'); // Default filter
 
   const loadDocuments = useCallback(async (filter: DocumentStatus | 'ALL') => {
     if (!token || !user?.roles?.includes('ADMIN')) {
@@ -202,10 +193,13 @@ export default function DocumentReviewPage() {
   }, [authLoading, user, statusFilter, loadDocuments, router]);
 
   const handleUpdateStatus = async (documentId: string, payload: DocumentStatusUpdatePayload) => {
-    // API call is handled by this page, callback from table/dialog informs what to do
-    await updateDocumentStatusApi(documentId, payload, token); // Actual API call
-    // Refresh the list to show updated status
-    loadDocuments(statusFilter);
+    try {
+      await updateDocumentStatusApi(documentId, payload, token);
+      toast.success(`Document ${payload.newStatus === 'APPROVED' ? 'approved' : 'rejected'} successfully.`);
+      loadDocuments(statusFilter);
+    } catch (err: any) {
+      toast.error(err.message || "Failed to update document status.");
+    }
   };
 
   const handleViewFile = (documentId: string, fileName: string) => {
@@ -258,7 +252,7 @@ export default function DocumentReviewPage() {
                 <SelectTrigger className="w-[220px]">
                     <SelectValue placeholder="Filter by status..." />
                 </SelectTrigger>
-                <SelectContent>
+                <SelectContent className='bg-white'>
                     {DocumentStatusOptions.map(opt => (
                         <SelectItem key={opt.value} value={opt.value}>{opt.label}</SelectItem>
                     ))}

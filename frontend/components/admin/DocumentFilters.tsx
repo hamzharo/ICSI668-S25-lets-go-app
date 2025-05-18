@@ -12,7 +12,7 @@ import { X, Search } from 'lucide-react';
 export interface DocumentFilterValues {
   status: DocumentStatus | 'ALL';
   userIdOrEmail: string; // Search by user ID or email
-  documentType: string | 'ALL'; // Could be from DOCUMENT_TYPES or 'ALL'
+  documentType: keyof typeof DOCUMENT_TYPES | 'ALL'; // Could be from DOCUMENT_TYPES or 'ALL'
 }
 
 interface DocumentFiltersProps {
@@ -20,6 +20,22 @@ interface DocumentFiltersProps {
   onFilterChange: (filters: DocumentFilterValues) => void;
   // onResetFilters: () => void; // Optional reset functionality
 }
+
+const statusOptions: Array<{ value: DocumentStatus | 'ALL'; label: string }> = [
+  { value: 'ALL', label: 'All Statuses' },
+  { value: 'PENDING_APPROVAL', label: 'Pending Approval' },
+  { value: 'APPROVED', label: 'Approved' },
+  { value: 'REJECTED', label: 'Rejected' },
+  { value: 'NONE', label: 'None (No Status)' }, // Or remove if 'NONE' is not a typical filter state
+];
+
+const documentTypeOptions = [
+  { value: 'ALL' as const, label: 'All Types' },
+  ...(Object.keys(DOCUMENT_TYPES) as Array<keyof typeof DOCUMENT_TYPES>).map(key => ({
+    value: key,
+    label: DOCUMENT_TYPES[key],
+  }))
+];
 
 const DocumentFilters = ({ initialFilters, onFilterChange }: DocumentFiltersProps) => {
   const [filters, setFilters] = React.useState<DocumentFilterValues>(initialFilters);
@@ -30,7 +46,14 @@ const DocumentFilters = ({ initialFilters, onFilterChange }: DocumentFiltersProp
   };
 
   const handleSelectChange = (name: keyof DocumentFilterValues, value: string) => {
-    setFilters(prev => ({ ...prev, [name]: value as any }));
+    // Cast 'value' appropriately based on 'name'
+    if (name === 'status') {
+      setFilters(prev => ({ ...prev, [name]: value as DocumentStatus | 'ALL' }));
+    } else if (name === 'documentType') {
+      setFilters(prev => ({ ...prev, [name]: value as keyof typeof DOCUMENT_TYPES | 'ALL'}));
+    } else {
+      setFilters(prev => ({ ...prev, [name]: value }));
+    }
   };
 
   const handleSubmit = (e: React.FormEvent<HTMLFormElement>) => {
@@ -39,9 +62,13 @@ const DocumentFilters = ({ initialFilters, onFilterChange }: DocumentFiltersProp
   };
 
   const handleReset = () => {
-    const resetFilters = { status: 'ALL', userIdOrEmail: '', documentType: 'ALL' } as DocumentFilterValues;
+    const resetFilters: DocumentFilterValues = {
+        status: 'ALL',
+        userIdOrEmail: '',
+        documentType: 'ALL'
+    };
     setFilters(resetFilters);
-    onFilterChange(resetFilters); // Apply reset filters immediately
+    onFilterChange(resetFilters);
   };
 
 
@@ -58,11 +85,12 @@ const DocumentFilters = ({ initialFilters, onFilterChange }: DocumentFiltersProp
             <SelectTrigger id="status">
               <SelectValue placeholder="Filter by status..." />
             </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="ALL">All Statuses</SelectItem>
-              <SelectItem value="PENDING_VERIFICATION">Pending Verification</SelectItem>
-              <SelectItem value="VERIFIED">Verified</SelectItem>
-              <SelectItem value="REJECTED">Rejected</SelectItem>
+            <SelectContent className='bg-white'>
+              {statusOptions.map(option => (
+                <SelectItem key={option.value} value={option.value}>
+                  {option.label}
+                </SelectItem>
+              ))}
             </SelectContent>
           </Select>
         </div>
@@ -88,11 +116,12 @@ const DocumentFilters = ({ initialFilters, onFilterChange }: DocumentFiltersProp
             <SelectTrigger id="documentType">
               <SelectValue placeholder="Filter by type..." />
             </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="ALL">All Types</SelectItem>
-              <SelectItem key={DOCUMENT_TYPES.DRIVING_LICENSE} value={DOCUMENT_TYPES.DRIVING_LICENSE}>DRIVING LICENSE</SelectItem>
-              <SelectItem key={DOCUMENT_TYPES.INSURANCE_POLICY} value={DOCUMENT_TYPES.INSURANCE_POLICY}>INSURANCE POLICY</SelectItem>
-              <SelectItem key={DOCUMENT_TYPES.VEHICLE_REGISTRATION} value={DOCUMENT_TYPES.VEHICLE_REGISTRATION}>VEHICLE REGISTRATION</SelectItem>
+            <SelectContent className='bg-white'>
+              {documentTypeOptions.map(option => (
+                <SelectItem key={option.value} value={option.value}>
+                  {option.label}
+                </SelectItem>
+              ))}
             </SelectContent>
           </Select>
         </div>
