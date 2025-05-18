@@ -1,8 +1,8 @@
 // frontend/components/driver/DriverRideCard.tsx
 'use client';
 
-import React, { useState } from 'react';
-import { DriverOfferedRide, BookingRequestSummary } from '@/types';
+import React, { act, useState } from 'react';
+import { DriverOfferedRide, BookingRequestSummary, BookingDTO, RideStatus } from '@/types';
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -10,7 +10,8 @@ import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/
 import Link from 'next/link';
 import BookingRequestItem from './BookingRequestItem';
 import {
-  MapPin, CalendarDays, Users, DollarSign, Car, Info, PlayCircle, CheckCircle2, XCircle, Edit3, Clock, AlertTriangle, MessageSquare, Trash2, Loader2
+  MapPin, CalendarDays, Users, DollarSign, Car, Info, PlayCircle, CheckCircle2, XCircle, Edit3, Clock, 
+  AlertTriangle, MessageSquare, Trash2, Loader2, Navigation
 } from 'lucide-react';
 import { format } from 'date-fns';
 import { toast } from 'react-toastify';
@@ -20,23 +21,28 @@ const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8080';
 
 interface DriverRideCardProps {
   ride: DriverOfferedRide;
-  onUpdateStatus: (rideId: string, newStatus: 'IN_PROGRESS' | 'COMPLETED' | 'CANCELLED_BY_DRIVER') => Promise<void>; // Keep for Start/Complete
-  onConfirmBooking: (rideId: string, bookingId: string) => Promise<void>;
-  onRejectBooking: (rideId: string, bookingId: string) => Promise<void>;
-  onRideCancelled: (rideId: string) => void; // New prop for direct cancellation
+  onUpdateRideLifecycleStatus: (rideId: string, action: 'START' | 'COMPLETE' | 'CANCEL_STATUS') => Promise<DriverOfferedRide | void>; // Return updated ride or void
+  onConfirmBooking: (rideId: string, bookingId: string) => Promise<BookingDTO | void>;
+  onRejectBooking: (rideId: string, bookingId: string) => Promise<BookingDTO | void>;
+  onRideDeleted: (rideId: string) => void;
 }
 
-const getRideStatusProps = (status: DriverOfferedRide['status']): { text: string; Icon: React.ElementType; colorClass: string; badgeVariant: "default" | "destructive" | "secondary" | "outline" | "success" } => {
+const getRideStatusProps = (status: DriverOfferedRide['status']): { 
+  text: string; 
+  Icon: React.ElementType; 
+  colorClass: string; 
+  badgeVariant: "default" | "destructive" | "secondary" | "outline" | "success" 
+} => {
   switch (status) {
     case 'SCHEDULED':
       return { text: 'Scheduled', Icon: Clock, colorClass: 'text-blue-600 dark:text-blue-400', badgeVariant: 'default' };
+    case 'ACTIVE':
+      return { text: 'Active', Icon: Navigation, colorClass: 'text-orange-600 dark:text-orange-400', badgeVariant: 'secondary' }
     case 'IN_PROGRESS':
       return { text: 'In Progress', Icon: PlayCircle, colorClass: 'text-orange-600 dark:text-orange-400', badgeVariant: 'secondary' };
     case 'COMPLETED':
       return { text: 'Completed', Icon: CheckCircle2, colorClass: 'text-green-600 dark:text-green-400', badgeVariant: 'success' };
-    case 'CANCELLED_BY_DRIVER': // This status is usually set by an action, not directly deleted.
-                               // If your DELETE endpoint also sets this status before deleting, it's fine.
-                               // Or, it could be a distinct "DELETED" status.
+    case 'CANCELLED_BY_DRIVER':
       return { text: 'Cancelled by You', Icon: XCircle, colorClass: 'text-red-600 dark:text-red-400', badgeVariant: 'destructive' };
     case 'CANCELLED_SYSTEM':
       return { text: 'Cancelled (System)', Icon: AlertTriangle, colorClass: 'text-gray-500 dark:text-gray-400', badgeVariant: 'outline' };
@@ -45,11 +51,10 @@ const getRideStatusProps = (status: DriverOfferedRide['status']): { text: string
   }
 };
 
-// API call to truly cancel (delete) a ride
 const cancelRideApi = async (rideId: string, token: string | null): Promise<void> => {
   if (!token) throw new Error("Authentication required to cancel ride.");
 
-  const url = `${API_BASE_URL}/api/driver/delete-ride/${rideId}`; // Your DELETE endpoint
+  const url = `${API_BASE_URL}/api/driver/delete-ride/${rideId}`;
   console.log(`API CALL: Cancelling (deleting) ride ${rideId} at ${url}`);
 
   const response = await fetch(url, {
@@ -59,68 +64,62 @@ const cancelRideApi = async (rideId: string, token: string | null): Promise<void
     },
   });
 
-  if (!response.ok) { // Handles 204 No Content as ok
+  if (!response.ok && response.status !== 204) {
     let errorMessage = `Failed to cancel ride. Status: ${response.status}`;
     try {
-        if (response.status !== 204) { // Don't try to parse JSON for 204
-            const errorData = await response.json();
-            errorMessage = errorData.message || errorMessage;
-        } else if (response.status === 204) {
-             // For 204 No Content, success is implied, so this block shouldn't be hit if !response.ok
-             // but as a safe guard.
-        }
+        const errorData = await response.json();
+        errorMessage = errorData.message || errorMessage;
     } catch (e) {
-        // If response is not JSON (and not 204), use the status text or a generic message
-        if (response.status !== 204) {
-            const textError = await response.text().catch(() => '');
-            errorMessage = textError || errorMessage;
-        }
+        const textError = await response.text().catch(() => '');
+        errorMessage = textError || errorMessage;
     }
     console.error("API Cancel/Delete Error:", errorMessage, response.status);
-    if (response.status !== 204) { // Only throw if not a successful 204
-        throw new Error(errorMessage);
-    }
+    throw new Error(errorMessage);
   }
-  // For DELETE, successful response is often 204 No Content or 200 OK (if it returns the deleted resource or a message)
-  if (response.status === 204) {
-    console.log(`Ride ${rideId} successfully cancelled (deleted).`);
-    return; // Explicitly return for 204
-  }
-  // If it's 200/202 and returns a body, you might parse it, but often not needed for delete.
-  console.log(`Ride ${rideId} cancellation processed with status ${response.status}.`);
+  console.log(`Ride ${rideId} successfully cancelled/deleted (status ${response.status}).`);
 };
 
 
-const DriverRideCard = ({ ride, onUpdateStatus, onConfirmBooking, onRejectBooking, onRideCancelled }: DriverRideCardProps) => {
+const DriverRideCard = ({ 
+  ride, 
+  onUpdateRideLifecycleStatus, 
+  onConfirmBooking, 
+  onRejectBooking, 
+  onRideDeleted
+}: DriverRideCardProps) => {
   const { token } = useAuth();
+
+  console.log(`DriverRideCard - Ride ID: ${ride.id}, Status: '${ride.status}'`); 
+
   const { text: statusText, Icon: StatusIcon, colorClass: statusColorClass, badgeVariant: statusBadgeVariant } = getRideStatusProps(ride.status);
   const [processingAction, setProcessingAction] = useState<string | null>(null);
   const [isBookingRequestsOpen, setIsBookingRequestsOpen] = useState(false);
 
 
-  const handleRideStatusUpdate = async (newStatus: 'IN_PROGRESS' | 'COMPLETED') => { // Removed CANCELLED_BY_DRIVER
-    const actionKey = `status_${newStatus}`;
+  const handleRideLifecycleUpdate = async (action: 'START' | 'COMPLETE') => {
+    const actionKey = `lifecycle_${action}_${ride.id}`;
     setProcessingAction(actionKey);
     try {
-      // Note: 'CANCELLED_BY_DRIVER' status update is now handled by the true delete/cancel function below
-      await onUpdateStatus(ride.id, newStatus);
-      toast.success(`Ride status updated to ${newStatus.replace('_', ' ').toLowerCase()}!`);
+      await onUpdateRideLifecycleStatus(ride.id, action);
+      toast.success(`Ride successfully ${action.toLowerCase()}ed!`);    
     } catch (error: any) {
-      toast.error(error.message || `Failed to update ride status.`);
+      toast.error(error.message || `Failed to ${action.toLowerCase()} ride.`);
     } finally {
       setProcessingAction(null);
     }
   };
 
   const handleTrueCancelRide = async () => {
-    if (!window.confirm(`Are you sure you want to permanently cancel and delete the ride from ${ride.departureCity} to ${ride.destinationCity}? This action cannot be undone.`)) {
+    if (!window.confirm(`Are you sure you want to permanently cancel and delete the ride from 
+      ${ride.departureCity} to ${ride.destinationCity}? This action cannot be undone.`)) {
         return;
     }
-    setProcessingAction(`delete_ride_${ride.id}`);
+    const actionKey = `delete_ride_${ride.id}`;
+    setProcessingAction(actionKey);
     try {
         await cancelRideApi(ride.id, token);
         toast.success("Ride has been successfully cancelled and removed.");
-        onRideCancelled(ride.id); // Notify parent to update the list
+        onRideDeleted(ride.id);
     } catch (error: any) {
         toast.error(error.message || "Failed to cancel ride. Please try again.");
     } finally {
@@ -129,7 +128,8 @@ const DriverRideCard = ({ ride, onUpdateStatus, onConfirmBooking, onRejectBookin
   };
 
   const handleConfirm = async (bookingId: string) => {
-    setProcessingAction(`confirm_${bookingId}`);
+    const actionKey = `confirm_${bookingId}`
+    setProcessingAction(actionKey);
     try {
         await onConfirmBooking(ride.id, bookingId);
         toast.success("Booking confirmed!");
@@ -141,7 +141,8 @@ const DriverRideCard = ({ ride, onUpdateStatus, onConfirmBooking, onRejectBookin
   };
 
   const handleReject = async (bookingId: string) => {
-    setProcessingAction(`reject_${bookingId}`);
+    const actionKey = `reject_${bookingId}`;
+    setProcessingAction(actionKey);
     try {
         await onRejectBooking(ride.id, bookingId);
         toast.info("Booking rejected.");
@@ -153,10 +154,12 @@ const DriverRideCard = ({ ride, onUpdateStatus, onConfirmBooking, onRejectBookin
   };
 
   const canStart = ride.status === 'SCHEDULED';
-  const canComplete = ride.status === 'IN_PROGRESS';
-  // This refers to the ability to "delete" the ride via the API
-  const canTrulyCancel = ride.status === 'SCHEDULED'; // Or any other state your backend allows for deletion
+  const canComplete = ride.status === 'ACTIVE';
+  const canTrulyCancel = ride.status === 'SCHEDULED' || 'ACTIVE';
   const canEdit = ride.status === 'SCHEDULED';
+
+  const pendingBookingRequests = ride.bookingRequests?.filter(
+    req => req.status.toUpperCase().includes("PENDING")) || [];
 
   return (
     <Card className="w-full overflow-hidden shadow-lg flex flex-col bg-white dark:bg-gray-800">
@@ -184,7 +187,7 @@ const DriverRideCard = ({ ride, onUpdateStatus, onConfirmBooking, onRejectBookin
             <div className="flex items-center"><CalendarDays className="mr-2 h-4 w-4 text-indigo-500" /> <strong>Departure:</strong> <span className="text-muted-foreground">{ride.departureTime ? format(new Date(ride.departureTime), "MMM d, h:mm a") : 'N/A'}</span></div>
             <div className="flex items-center"><Clock className="mr-2 h-4 w-4 text-indigo-500" /> <strong>Est. Arrival:</strong> <span className="text-muted-foreground">{ride.estimatedArrivalTime ? format(new Date(ride.estimatedArrivalTime), "MMM d, h:mm a") : 'N/A'}</span></div>
             <div className="flex items-center"><Users className="mr-2 h-4 w-4 text-orange-500" /> <strong>Seats:</strong> <span className="text-muted-foreground">{ride.confirmedBookingsCount || 0} Confirmed / {ride.totalSeats} Total ({ride.availableSeats} Avail.)</span></div>
-            <div className="flex items-center"><DollarSign className="mr-2 h-4 w-4 text-green-500" /> <strong>Price:</strong> <span className="text-muted-foreground">${ride.farePerSeat ? ride.farePerSeat.toFixed(2) : '0.00'} / seat</span></div>
+            <div className="flex items-center"><DollarSign className="mr-2 h-4 w-4 text-green-500" /> <strong>Price:</strong> <span className="text-muted-foreground">${ride.pricePerSeat ? ride.pricePerSeat.toFixed(2) : '0.00'} / seat</span></div>
             {ride.vehicleDescription && <div className="flex items-center col-span-1 sm:col-span-2"><Car className="mr-2 h-4 w-4 text-gray-500" /> <strong>Vehicle:</strong> <span className="text-muted-foreground">{ride.vehicleDescription}</span></div>}
         </div>
 
@@ -229,25 +232,33 @@ const DriverRideCard = ({ ride, onUpdateStatus, onConfirmBooking, onRejectBookin
             </Link>
           )}
           {canStart && (
-            <Button variant="default" size="sm" className="bg-green-600 hover:bg-green-700" onClick={() => handleRideStatusUpdate('IN_PROGRESS')} disabled={!!processingAction || processingAction === 'status_IN_PROGRESS'}>
-              {processingAction === 'status_IN_PROGRESS' && <Loader2 className="mr-1.5 h-4 w-4 animate-spin" />}
-              <PlayCircle className="mr-1.5 h-4 w-4" /> Start Ride
+            <Button 
+              variant="default" 
+              size="sm" 
+              className="bg-green-600 hover:bg-green-700" 
+              onClick={() => handleRideLifecycleUpdate('START')} 
+              disabled={!!processingAction || processingAction === `lifecycle_START_${ride.id}`}>
+              {processingAction === `lifecycle_START_${ride.id}` && 
+              <Loader2 className="mr-1.5 h-4 w-4 animate-spin" /> }
+              <PlayCircle className="mr-1.5 h-4 w-4" 
+            /> 
+            Start Ride
             </Button>
           )}
           {canComplete && (
-            <Button variant="default" size="sm" className="bg-blue-600 hover:bg-blue-700" onClick={() => handleRideStatusUpdate('COMPLETED')} disabled={!!processingAction || processingAction === 'status_COMPLETED'}>
-              {processingAction === 'status_COMPLETED' && <Loader2 className="mr-1.5 h-4 w-4 animate-spin" />}
+            <Button variant="default" size="sm" className="bg-blue-600 hover:bg-blue-700" onClick={() => handleRideLifecycleUpdate('COMPLETE')} disabled={!!processingAction || processingAction === `lifecycle_COMPLETE_${ride.id}`}>
+              {processingAction === `lifecycle_COMPLETE_${ride.id}` && <Loader2 className="mr-1.5 h-4 w-4 animate-spin" />}
               <CheckCircle2 className="mr-1.5 h-4 w-4" /> Complete Ride
             </Button>
           )}
-          {canTrulyCancel && ( // Use the new flag for the actual delete button
+          {canTrulyCancel && (
             <Button
               variant="destructive"
               size="sm"
               onClick={handleTrueCancelRide}
               disabled={!!processingAction || processingAction === `delete_ride_${ride.id}`}>
                {processingAction === `delete_ride_${ride.id}` && <Loader2 className="mr-1.5 h-4 w-4 animate-spin" />}
-              <Trash2 className="mr-1.5 h-4 w-4" /> Cancel Ride {/* Changed icon to Trash2 for clarity */}
+              <Trash2 className="mr-1.5 h-4 w-4" /> Cancel Ride
             </Button>
           )}
         </div>

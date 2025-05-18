@@ -6,6 +6,18 @@ export type DriverStatus = 'NONE' | 'PENDING_APPROVAL' | 'APPROVED' | 'REJECTED'
 
 export type AccountStatus = 'ACTIVE' | 'SUSPENDED' | 'PENDING_EMAIL_VERIFICATION' | 'DEACTIVATED';
 
+export type DocumentStatus = 'PENDING_VERIFICATION' | 'VERIFIED' | 'REJECTED'| 'NONE';
+
+export type RideStatus =
+  | 'SCHEDULED'
+  | 'ACTIVE' // Add ACTIVE here
+  | 'IN_PROGRESS' // Keep IN_PROGRESS for now, or decide if ACTIVE fully replaces it
+  | 'COMPLETED'
+  | 'CANCELLED_BY_DRIVER'
+  | 'CANCELLED_SYSTEM'
+  | string; // for flexibility if backend sends something unexpected temporarily
+
+
 export interface SignupRequestDTO {
   firstName: string;
   lastName: string;
@@ -64,7 +76,6 @@ export interface AdminDocumentView extends DocumentMetadata {
   userEmail: string; 
 }
 
-export type DocumentStatus = 'PENDING_VERIFICATION' | 'VERIFIED' | 'REJECTED'| 'NONE';
 
 export interface DocumentStatusUpdatePayload {
   newStatus: 'VERIFIED' | 'REJECTED';
@@ -112,6 +123,54 @@ export interface BookingRequestPayload {
 
 export type BookingStatus = 'REQUESTED' | 'CONFIRMED' | 'REJECTED_BY_DRIVER' | 'CANCELLED_BY_PASSENGER' | 'CANCELLED_BY_DRIVER' | 'COMPLETED' | 'PENDING_PAYMENT';
 
+// export interface BookingRequestSummary {
+//   bookingId: string; // This is likely the 'id' from BookingDTO
+//   passengerId: string;
+//   passengerName: string; // Or passengerUsername, etc.
+//   requestedSeats: number;
+//   status: BookingStatus | string; // Use BookingStatus union for better type safety
+//   requestedAt: string; // ISO date string (corresponds to bookingTime or a similar field)
+// }
+
+export interface BookingDTO {
+  id: string;
+  rideId: string;
+  passengerId: string;
+  driverId: string;
+  requestedSeats: number;
+  status: BookingStatus | string; // Use the BookingStatus type here
+  bookingTime: string;         // LocalDateTime becomes string (ISO 8601 format)
+  confirmationTime?: string | null; // Optional and can be null
+  cancellationTime?: string | null; // Optional and can be null
+
+  // --- ADDED FIELDS ---
+  departureCity?: string;       // Make optional if not always present
+  destinationCity?: string;     // Make optional if not always present
+  departureState?: string;
+  destinationState?: string;
+  driverName?: string;          // Make optional if not always present
+}
+
+export interface DriverOfferedRide {
+  id: string;
+  driverId: string;
+  driverName: string;
+  departureCity: string;
+  destinationCity: string;
+  departureState: string;
+  destinationState: string;
+  departureTime: string; // ISO date string
+  estimatedArrivalTime: string; // ISO date string
+  pricePerSeat: number;
+  totalSeats: number;
+  availableSeats: number;
+  status: RideStatus;
+  vehicleDescription?: string;
+  createdAt: string; // ISO date string
+  updatedAt?: string; // ISO date string
+  bookingRequests?: BookingRequestSummary[];
+  confirmedBookingsCount?: number;
+}
 
 export interface UserRideBookingStatus {
     bookingId?: string;
@@ -169,7 +228,8 @@ export interface BookingRequestSummary {
   passengerLastName?: string;
   seatsRequested: number;
   requestTime: string;
-  status: 'REQUESTED';
+  passengerInfo: PassengerInfoSummary;
+  status: 'REQUESTED' | 'CONFIRMED' | 'REJECTED' | 'CANCELLED_BY_PASSENGER'; 
 }
 
 export interface DriverOfferedRide {
@@ -184,12 +244,13 @@ export interface DriverOfferedRide {
   totalSeats: number;
   pricePerSeat: number;
   vehicleDescription?: string;
-  status: 'SCHEDULED' | 'IN_PROGRESS' | 'COMPLETED' | 'CANCELLED_BY_DRIVER' | 'CANCELLED_SYSTEM';
+  status: 'SCHEDULED' | 'CONFIRMED' | 'IN_PROGRESS' | 'COMPLETED' | 'CANCELLED_BY_DRIVER' | 'CANCELLED_SYSTEM';
   createdAt: string;
   updatedAt?: string;
   bookingRequests?: BookingRequestSummary[];
   confirmedBookingsCount?: number;
   rideNotes?: string | null;
+  
 }
 
 export interface RideUpdateFormValues {
@@ -216,6 +277,14 @@ export interface RideUpdateDTO {
   pricePerSeat?: number;
   vehicleDescription?: string;
   rideNotes?: string;
+}
+
+
+export interface PassengerInfoSummary { // Info about the passenger who made the request
+  id: string;
+  firstName: string;
+  lastName?: string;
+  // Add profileImageUrl or other relevant passenger details if available
 }
 
 // --- Earnings Related Types ---
@@ -305,4 +374,128 @@ export interface RideDetails {
 
 }
 
+export interface DriverApplicationFormValues {
+  licenseNumber: string;
+  vehicleMake: string;
+  vehicleModel: string;
+  vehicleYear: string; // Kept as string for form input, backend can parse/validate as year
+  vehicleColor: string;
+  vehiclePlateNumber: string;
+  // Optional: A field for the passenger to add any notes with their application
+  // passengerNotes?: string;
+}
 
+export interface DriverApplicationDTO {
+  id: string; // Unique ID for the application itself
+  userId: string; // ID of the user who applied
+  userFirstName?: string; // Optional: Denormalized for easier display if needed
+  userLastName?: string;  // Optional: Denormalized
+  licenseNumber: string;
+  vehicleMake: string;
+  vehicleModel: string;
+  vehicleYear: string;
+  vehicleColor: string;
+  vehiclePlateNumber: string;
+  status: DriverStatus; // Re-using your existing DriverStatus: 'NONE' | 'PENDING_APPROVAL' | 'APPROVED' | 'REJECTED'
+  applicationDate: string; // ISO 8601 date string when the application was submitted
+  reviewDate?: string; // ISO 8601 date string when it was reviewed
+  adminNotes?: string;
+
+
+}
+
+export interface ChatMessage { // This is what you'll receive and display
+  id: string; // Your backend ChatMessage entity has an ID, but DTO from controller doesn't explicitly map it. Let's assume DTO should match this.
+  rideId: string;
+  senderId: string;
+  senderFirstName: string; // Backend controller now maps this as senderName
+  content: string;
+  timestamp: string; // ISO string
+  isOwnMessage?: boolean; // Client-side flag
+  senderRole?: 'DRIVER' | 'PASSENGER' | string; // Backend is sending this
+}
+
+export interface ChatMessageSendPayload { // This is what you'll send
+  // rideId: string; // Backend gets rideId from @DestinationVariable, so not strictly needed in payload if STOMP client sends to correct path.
+                  // However, your ChatMessageDTO in backend constructor takes rideId.
+                  // Let's assume for now that the backend will use the @DestinationVariable for rideId primarily.
+  content: string;
+}
+
+export interface PassengerConversationPreview {
+  rideId: string;
+  driverId: string;
+  driverFirstName: string;
+  driverLastName?: string;
+  driverProfilePictureUrl?: string; // If available
+  rideDepartureCity: string;
+  rideDestinationCity: string;
+  rideDepartureTime: string; // ISO string
+  lastMessageSnippet?: string; // Optional: last message content
+  lastMessageTimestamp?: string; // Optional: timestamp of last message
+  unreadCount?: number; // Optional: number of unread messages
+}
+
+
+
+export interface DriverNotificationSettings {
+  newBookingRequest: boolean; // Email/Push for new booking requests
+  bookingConfirmed: boolean;  // Email/Push when a booking is auto-confirmed or you confirm it
+  bookingCancelledByPassenger: boolean; // Email/Push if a passenger cancels
+  rideReminder: boolean;      // Reminder before a scheduled ride
+  newMessageInChat: boolean;  // Notification for new chat messages
+  platformUpdates: boolean;   // General updates from the platform
+}
+
+export interface DriverPayoutSettings {
+  payoutMethod: 'BANK_ACCOUNT' | 'PAYPAL' | 'NONE_SET'; // Example methods
+  bankAccountNumber?: string; // Masked, e.g., **** **** **** 1234
+  bankRoutingNumber?: string; // Masked
+  paypalEmail?: string;
+  payoutFrequency: 'DAILY' | 'WEEKLY' | 'MONTHLY';
+}
+
+export interface DriverPreferences {
+  acceptInstantBook: boolean; // Allow passengers to book instantly without approval
+  allowPets: boolean;
+  allowSmoking: boolean;
+  maxLuggageSize: 'SMALL' | 'MEDIUM' | 'LARGE' | 'NONE';
+  musicPreference: 'PASSENGER_CHOICE' | 'DRIVER_CHOICE' | 'QUIET_RIDE' | 'ANY';
+}
+
+// Consolidate all settings for a driver
+export interface DriverSettingsData {
+  userId: string; // To link to the user
+  notifications: DriverNotificationSettings;
+  payout: DriverPayoutSettings;
+  preferences: DriverPreferences;
+  // Add any other setting categories you can think of
+  // e.g., twoFactorAuthEnabled: boolean;
+}
+
+// For the form (might be a subset or slightly different structure)
+export type DriverSettingsFormValues = Omit<DriverSettingsData, 'userId'>;
+
+export interface FAQItem {
+  id: string;
+  question: string;
+  answer: string; // Can include HTML if you plan to render rich text
+  category: 'General' | 'Rides' | 'Payments' | 'Account' | 'Technical'; // Example categories
+}
+
+export interface SupportTicketFormValues {
+  subject: string;
+  category: 'Billing' | 'Technical Issue' | 'Ride Dispute' | 'Account Question' | 'Feedback' | 'Other';
+  message: string;
+  // Potentially add:
+  // rideId?: string; // If the issue is related to a specific ride
+  // attachment?: File; // If you allow file uploads
+}
+
+export interface SupportTicketDTO extends SupportTicketFormValues {
+  ticketId: string; // Generated by backend
+  userId: string;
+  userEmail: string;
+  status: 'OPEN' | 'IN_PROGRESS' | 'RESOLVED' | 'CLOSED';
+  createdAt: string; // ISO string
+}

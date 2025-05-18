@@ -2,7 +2,6 @@ package com.carsharing.backend.controller;
 
 import com.carsharing.backend.exception.BookingException;
 import com.carsharing.backend.exception.ResourceNotFoundException;
-import com.carsharing.backend.model.Booking;
 import com.carsharing.backend.service.BookingService;
 
 import com.carsharing.backend.service.UserService; // Import UserService

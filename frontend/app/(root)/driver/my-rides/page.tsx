@@ -3,7 +3,7 @@
 
 import React, { useEffect, useState, useCallback } from 'react';
 import { useAuth } from '@/lib/AuthContext';
-import { DriverOfferedRide } from '@/types';
+import { DriverOfferedRide, BookingDTO } from '@/types'; // Ensure BookingDTO is imported
 import DriverRideCard from '@/components/driver/DriverRideCard';
 import { toast } from 'react-toastify';
 import { Loader2, Car, Frown, Inbox, PlusCircle } from 'lucide-react';
@@ -15,130 +15,177 @@ import { Pagination, PaginationContent, PaginationEllipsis, PaginationItem, Pagi
 
 const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8080';
 
-// This interface is now effectively unused if backend doesn't paginate,
-// but kept for potential future backend upgrade.
-// interface PaginatedDriverRidesResponse {
-//     content: DriverOfferedRide[];
-//     totalPages: number;
-//     totalElements: number;
-//     number: number;
-//     size: number;
-// }
- 
-// Updated API call: Expects a simple array if backend doesn't paginate.
-const fetchDriverOfferedRidesApi = async (
-    token: string | null
-): Promise<DriverOfferedRide[]> => { // Returns DriverOfferedRide[] directly
-  if (!token) {
-    console.error("API CALL ERROR: No authentication token provided.");
-    throw new Error("Authentication token is missing. Please log in again.");
-  }
-
-  // Endpoint as per your Postman, assuming no pagination query params are supported by it
+// Fetch Driver's Offered Rides (already seems okay, assuming backend /api/driver/my-rides returns DriverOfferedRide compatible array)
+const fetchDriverOfferedRidesApi = async (token: string | null): Promise<DriverOfferedRide[]> => {
+  if (!token) throw new Error("Authentication token is missing.");
   const url = `${API_BASE_URL}/api/driver/my-rides`;
-  console.log(`API CALL: Fetching driver's offered rides: ${url}`);
+  const response = await fetch(url, {
+    method: 'GET',
+    headers: { 'Authorization': `Bearer ${token}` },
+  });
 
-  try {
+  if (response.status === 204) { // No content means empty list
+    return [];
+  }
+  if (!response.ok) {
+    const errorBody = await response.json().catch(() => ({ message: `Server error: ${response.status}` }));
+    throw new Error(errorBody.message || `Failed to fetch offered rides.`);
+  }
+  const responseBody = await response.json();
+  if (!Array.isArray(responseBody)) {
+    throw new Error("Invalid data format: Expected an array of rides.");
+  }
+  return responseBody as DriverOfferedRide[];
+};
+
+
+// --- Ride Lifecycle API Calls ---
+
+// API call to START a ride
+const startRideApi = async (rideId: string, token: string | null): Promise<DriverOfferedRide> => {
+  if (!token) throw new Error("Authentication required to start ride.");
+  const url = `${API_BASE_URL}/api/rides/${rideId}/start`; // From RideController
+  console.log(`API CALL: Starting ride ${rideId} at ${url}`);
+
+  const response = await fetch(url, {
+    method: 'PUT',
+    headers: {
+      'Authorization': `Bearer ${token}`,
+      'Content-Type': 'application/json', // Though no body, standard for PUT
+    },
+  });
+
+  if (!response.ok) {
+    const errorData = await response.json().catch(() => ({ message: `Failed to start ride. Server responded with ${response.status}` }));
+    throw new Error(errorData.message || `Failed to start ride.`);
+  }
+  return response.json(); // Expects updated RideDTO (compatible with DriverOfferedRide)
+};
+
+// API call to COMPLETE a ride
+const completeRideApi = async (rideId: string, token: string | null): Promise<DriverOfferedRide> => {
+  if (!token) throw new Error("Authentication required to complete ride.");
+  const url = `${API_BASE_URL}/api/rides/${rideId}/complete`; // From RideController
+  console.log(`API CALL: Completing ride ${rideId} at ${url}`);
+
+  const response = await fetch(url, {
+    method: 'PUT',
+    headers: {
+      'Authorization': `Bearer ${token}`,
+      'Content-Type': 'application/json',
+    },
+  });
+
+  if (!response.ok) {
+    const errorData = await response.json().catch(() => ({ message: `Failed to complete ride. Server responded with ${response.status}` }));
+    throw new Error(errorData.message || `Failed to complete ride.`);
+  }
+  return response.json(); // Expects updated RideDTO
+};
+
+// API call to set ride status to CANCELLED_BY_DRIVER (via PUT /api/rides/{rideId}/cancel)
+const setRideStatusCancelledApi = async (rideId: string, token: string | null): Promise<void> => {
+    if (!token) throw new Error("Authentication required to cancel ride status.");
+    const url = `${API_BASE_URL}/api/rides/${rideId}/cancel`; // From RideController
+    console.log(`API CALL: Setting ride ${rideId} status to cancelled at ${url}`);
+
     const response = await fetch(url, {
-      method: 'GET',
-      headers: {
-        'Authorization': `Bearer ${token}`,
-        // 'Content-Type': 'application/json', // Not strictly needed for GET but good practice
-      },
+        method: 'PUT',
+        headers: {
+            'Authorization': `Bearer ${token}`,
+            'Content-Type': 'application/json',
+        },
     });
 
-    // Try to parse JSON regardless of content-type for flexibility, but check response.ok first
-    if (!response.ok) {
-        let errorBody;
-        try {
-            errorBody = await response.json();
-            const errorMessage = errorBody?.message || errorBody?.error || `Failed to fetch offered rides. Server responded with ${response.status}.`;
-            console.error("API Error (JSON):", errorMessage, errorBody);
-            throw new Error(errorMessage);
-        } catch (e) {
-            // If parsing error body as JSON fails, read as text
-            const textError = await response.text();
-            console.error("API Error (Non-JSON):", textError, response.status);
-            throw new Error(textError || `Failed to fetch offered rides. Server responded with ${response.status}.`);
+    if (!response.ok) { // Includes 204 No Content as !ok if not handled
+        if (response.status === 204) {
+            // Success, but no content to parse
+            return;
         }
+        const errorData = await response.json().catch(() => ({ message: `Failed to set ride status to cancelled. Server responded with ${response.status}` }));
+        throw new Error(errorData.message || `Failed to set ride status to cancelled.`);
     }
-    
-    const responseBody = await response.json();
-    console.log("API Response Body (expected array):", responseBody);
-
-
-    // Backend returns a direct array of rides
-    if (!Array.isArray(responseBody)) {
-        console.error("API Error: Expected an array of rides, but received:", responseBody);
-        throw new Error("Invalid data format received from server. Expected an array.");
+    // If it's 200 OK for some reason, check. But typically 204.
+    if (response.status === 204) {
+        return; // Explicitly return void for 204
     }
-    return responseBody as DriverOfferedRide[];
-
-  } catch (error: any) {
-    console.error("Error during fetchDriverOfferedRidesApi call:", error);
-    if (error instanceof Error) {
-        throw error;
-    } else {
-        throw new Error(String(error.message || "An unknown error occurred while fetching rides."));
-    }
-  }
+    // If backend unexpectedly returns content with 200 on this call, it would be handled here.
+    // For now, assume 204 is the primary success path.
 };
 
-// --- Dummy API Helpers (Keep as is) ---
-const updateRideStatusApi = async (rideId: string, newStatus: 'IN_PROGRESS' | 'COMPLETED' | 'CANCELLED_BY_DRIVER', token: string | null): Promise<DriverOfferedRide> => {
-    console.warn("updateRideStatusApi is a STUB");
-    return new Promise(resolve => setTimeout(() => {
-        toast.info(`Mock: Ride ${rideId} status updated to ${newStatus}`);
-        resolve({ id: rideId, status: newStatus } as unknown as DriverOfferedRide);
-    }, 500));
+
+// --- Booking Management API Calls ---
+const confirmBookingApi = async (bookingId: string, token: string | null): Promise<BookingDTO> => {
+    if (!token) throw new Error("Authentication required to confirm booking.");
+    const url = `${API_BASE_URL}/api/driver/bookings/${bookingId}/confirm`; // From DriverController
+    console.log(`API CALL: Confirming booking ${bookingId} at ${url}`);
+
+    const response = await fetch(url, {
+        method: 'POST',
+        headers: {
+            'Authorization': `Bearer ${token}`,
+            'Content-Type': 'application/json',
+        },
+    });
+
+    if (!response.ok) {
+        const errorData = await response.json().catch(() => ({ message: `Failed to confirm booking. Server responded with ${response.status}` }));
+        throw new Error(errorData.message || `Failed to confirm booking.`);
+    }
+    return response.json(); // Expects BookingDTO
 };
-const manageBookingRequestApi = async (bookingId: string, action: 'confirm' | 'reject', token: string | null): Promise<{ message: string }> => {
-    console.warn("manageBookingRequestApi is a STUB");
-    return new Promise(resolve => setTimeout(() => {
-        const message = `Mock: Booking ${bookingId} ${action}ed.`;
-        toast.info(message);
-        resolve({ message });
-    }, 500));
+
+const rejectBookingApi = async (bookingId: string, token: string | null): Promise<BookingDTO> => {
+    if (!token) throw new Error("Authentication required to reject booking.");
+    const url = `${API_BASE_URL}/api/driver/bookings/${bookingId}/reject`; // From DriverController
+    console.log(`API CALL: Rejecting booking ${bookingId} at ${url}`);
+
+    const response = await fetch(url, {
+        method: 'POST',
+        headers: {
+            'Authorization': `Bearer ${token}`,
+            'Content-Type': 'application/json',
+        },
+    });
+
+    if (!response.ok) {
+        const errorData = await response.json().catch(() => ({ message: `Failed to reject booking. Server responded with ${response.status}` }));
+        throw new Error(errorData.message || `Failed to reject booking.`);
+    }
+    return response.json(); // Expects BookingDTO
 };
-// --- End API Helpers ---
 
 
 export default function MyOfferedRidesPage() {
   const { user, token, isLoading: authLoading } = useAuth();
   const router = useRouter();
 
-  const [offeredRides, setOfferedRides] = useState<DriverOfferedRide[]>([]); // Initialized as empty array
+  const [offeredRides, setOfferedRides] = useState<DriverOfferedRide[]>([]);
   const [isLoadingRides, setIsLoadingRides] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
-  // Pagination State (will be minimal if backend doesn't paginate)
-  const [currentPage, setCurrentPage] = useState(0); // Will likely stay 0
+  const [currentPage, setCurrentPage] = useState(0);
   const [totalPages, setTotalPages] = useState(0);
   const [totalElements, setTotalElements] = useState(0);
-  // const itemsPerPage = 5; // Not used if no client-side pagination is implemented
 
   const loadOfferedRides = useCallback(async () => {
     if (!token || !user?.roles.includes("DRIVER")) {
       setIsLoadingRides(false);
       return;
     }
-    console.log(`loadOfferedRides called`);
     setIsLoadingRides(true);
     setError(null);
     try {
-      const ridesArray = await fetchDriverOfferedRidesApi(token); // Call updated API function
-      setOfferedRides(ridesArray); // Set the fetched array directly
-
-      // Update pagination state based on the single array fetched
+      const ridesArray = await fetchDriverOfferedRidesApi(token);
+      setOfferedRides(ridesArray);
       setTotalElements(ridesArray.length);
-      setTotalPages(ridesArray.length > 0 ? 1 : 0); // Only 1 "page"
-      setCurrentPage(0); // Always on the first (and only) "page"
-
-    } catch (err: any)      {
+      setTotalPages(ridesArray.length > 0 ? 1 : 0);
+      setCurrentPage(0);
+    } catch (err: any) {
       console.error("Failed to load offered rides:", err);
       setError(err.message || "Could not load your offered rides.");
       toast.error(err.message || "Failed to load offered rides.");
-      setOfferedRides([]); // CRITICAL: Ensure offeredRides is an empty array on error
+      setOfferedRides([]);
       setTotalPages(0);
       setTotalElements(0);
     } finally {
@@ -151,61 +198,69 @@ export default function MyOfferedRidesPage() {
       setIsLoadingRides(true);
       return;
     }
-
     if (user && user.roles.includes("DRIVER")) {
-      loadOfferedRides(); // Call without page argument
-    } else { // Handles: user but not DRIVER, or no user
+      loadOfferedRides();
+    } else {
       setIsLoadingRides(false);
     }
   }, [authLoading, user, loadOfferedRides]);
 
-
-  const handleUpdateRideStatus = async (rideId: string, newStatus: 'IN_PROGRESS' | 'COMPLETED' | 'CANCELLED_BY_DRIVER') => {
-    // setIsLoadingRides(true); // Optional: show a loading indicator for the action
+  const handleRideLifecycleAction = async (rideId: string, action: 'START' | 'COMPLETE' | 'CANCEL_STATUS') => {
     try {
-        await updateRideStatusApi(rideId, newStatus, token);
-        toast.success(`Ride status updated to ${newStatus}.`);
-        loadOfferedRides(); // Refresh all rides
+      if (action === 'START') {
+        await startRideApi(rideId, token);
+        toast.success(`Ride successfully started!`);
+      } else if (action === 'COMPLETE') {
+        await completeRideApi(rideId, token);
+        toast.success(`Ride successfully completed!`);
+      } else if (action === 'CANCEL_STATUS') {
+        await setRideStatusCancelledApi(rideId, token);
+        toast.success(`Ride status updated to cancelled.`);
+      } else {
+        console.error("Unknown lifecycle action:", action);
+        toast.error("Unknown ride action.");
+        return;
+      }
+      loadOfferedRides(); // Refresh list
     } catch (error: any) {
-        toast.error(error.message || `Failed to update ride to ${newStatus}`);
-        // setIsLoadingRides(false);
+      toast.error(error.message || `Failed to perform action: ${action.toLowerCase()}.`);
     }
   };
+  
+  const handleRideDeleted = (rideId: string) => {
+    // The toast for deletion success/failure is handled in DriverRideCard's handleTrueCancelRide.
+    // This callback refreshes the list.
+    console.log(`Ride ${rideId} was deleted/cancelled, refreshing list.`);
+    loadOfferedRides();
+  };
 
-  const handleConfirmBooking = async (rideId: string, bookingId: string) => {
-    // setIsLoadingRides(true); // Optional
+  const handleConfirmBooking = async (rideId: string, bookingId: string) => { // rideId might not be needed here if bookingId is globally unique
     try {
-        await manageBookingRequestApi(bookingId, 'confirm', token);
+        await confirmBookingApi(bookingId, token); // Use new API function
         toast.success(`Booking ${bookingId} confirmed.`);
         loadOfferedRides();
     } catch (error: any) {
         toast.error(error.message || "Failed to confirm booking.");
-        // setIsLoadingRides(false);
     }
   };
 
-  const handleRejectBooking = async (rideId: string, bookingId: string) => {
-    // setIsLoadingRides(true); // Optional
+  const handleRejectBooking = async (rideId: string, bookingId: string) => { // rideId might not be needed here
      try {
-        await manageBookingRequestApi(bookingId, 'reject', token);
+        await rejectBookingApi(bookingId, token); // Use new API function
         toast.success(`Booking ${bookingId} rejected.`);
         loadOfferedRides();
     } catch (error: any) {
         toast.error(error.message || "Failed to reject booking.");
-        // setIsLoadingRides(false);
     }
   };
 
-  // This handler is now mostly for future use if backend pagination is added.
-  // With current setup (totalPages <= 1), it won't be effectively used.
   const handlePageChange = (newPage: number) => {
     if (newPage >= 0 && newPage < totalPages && newPage !== currentPage) {
       setCurrentPage(newPage);
-      // If you implement client-side pagination in the future, you'd handle it here.
-      // For now, loadOfferedRides fetches everything, so changing page doesn't re-fetch differently.
     }
   };
 
+  // --- RENDER LOGIC (no changes here, keeping it concise) ---
   if (authLoading) {
     return <div className="flex flex-grow items-center justify-center h-screen"><Loader2 className="h-12 w-12 animate-spin text-primary" /></div>;
   }
@@ -281,22 +336,21 @@ export default function MyOfferedRidesPage() {
         </div>
       )}
 
-      {/* This condition offeredRides && offeredRides.length > 0 is now safe */}
       {offeredRides && offeredRides.length > 0 && (
         <div className="space-y-6">
           {offeredRides.map((ride) => (
             <DriverRideCard
               key={ride.id}
               ride={ride}
-              onUpdateStatus={handleUpdateRideStatus}
+              onUpdateRideLifecycleStatus={handleRideLifecycleAction}
               onConfirmBooking={handleConfirmBooking}
               onRejectBooking={handleRejectBooking}
+              onRideDeleted={handleRideDeleted}
             />
           ))}
         </div>
       )}
 
-      {/* Pagination Controls - Will not render if totalPages <= 1 */}
       {totalPages > 1 && !isLoadingRides && (
         <div className="mt-8 flex justify-center">
           <Pagination>

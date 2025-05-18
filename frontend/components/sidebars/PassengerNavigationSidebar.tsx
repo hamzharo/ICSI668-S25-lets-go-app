@@ -1,3 +1,4 @@
+
 // frontend/components/navigation/PassengerNavigationSidebar.tsx
 'use client';
 
@@ -17,7 +18,9 @@ import {
   LifeBuoy,       // Support
   LogOut,         // Logout
   ChevronRight,
-  Camera          // For profile picture change
+  Camera,          // For profile picture change
+  Mail,           // << NEW: For Inbox
+  Car,            // << NEW: For Become a Driver (or SteeringWheel, UserPlus etc.)
 } from 'lucide-react';
 import { Separator } from '@/components/ui/separator';
 import { useAuth } from '@/lib/AuthContext'; // IMPORT YOUR AUTH CONTEXT HOOK
@@ -76,11 +79,13 @@ const PassengerNavigationSidebar = ({ initialUser }: PassengerNavigationSidebarP
   // Define navigation items for Passengers
   const navItems = [
     // { href: '/passenger/dashboard', icon: LayoutDashboard, label: 'Dashboard' },
-    { href: '/search-rides', icon: Search, label: 'Find a Ride' }, // Or /passenger/search-rides
-    { href: '/my-bookings', icon: ListChecks, label: 'My Bookings' }, // Or /passenger/my-bookings
-    { href: '/passenger/edit-profile', icon: UserCog, label: 'Edit Profile' },
+    { href: '/search-rides', icon: Search, label: 'Find a Ride' },
+    { href: '/my-bookings', icon: ListChecks, label: 'My Bookings' },
+    { href: '/passenger/inbox', icon: Mail, label: 'Inbox' }, // << NEW
+    // { href: '/passenger/edit-profile', icon: UserCog, label: 'Edit Profile' },
     // Optional: Add more passenger-specific items like Ride History
     // { href: '/passenger/ride-history', icon: History, label: 'Ride History' },
+    { href: '/passenger/become-driver', icon: Car, label: 'Become a Driver' }, // << NEW (adjust href as needed)
   ];
 
   const accountItems = [
