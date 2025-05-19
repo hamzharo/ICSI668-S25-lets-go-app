@@ -502,3 +502,37 @@ export interface SupportTicketDTO extends SupportTicketFormValues {
   status: 'OPEN' | 'IN_PROGRESS' | 'RESOLVED' | 'CLOSED';
   createdAt: string; // ISO string
 }
+
+
+export interface DriverProfile {
+  id: string; // or linked to userId
+  userId: string;
+  vehicleMake?: string;
+  vehicleModel?: string;
+  vehicleYear?: string;
+  vehicleLicensePlate?: string;
+  vehicleColor?: string;
+  // ... other vehicle details
+  bankAccountName?: string;
+  bankAccountNumber?: string; // Encrypt this at rest if storing
+  bankRoutingNumber?: string;
+  drivingLicenseNumber?: string;
+  drivingLicenseExpiry?: string; // Date string
+  drivingLicenseStatus?: 'MISSING' | 'PENDING_APPROVAL' | 'APPROVED' | 'REJECTED';
+  insurancePolicyNumber?: string;
+  insuranceExpiry?: string; // Date string
+  // ... other driver specific fields
+}
+
+
+
+export interface DriverProfileUpdateRequest {
+  firstName?: string;
+  lastName?: string;
+  username?: string;
+  email?: string; // Usually not updatable via this form
+  phoneNumber?: string;
+  bio?: string;
+  currentProfilePictureUrl?: string; // To track existing and help backend if picture is removed
+  
+}

@@ -122,14 +122,14 @@ const DriverNavigationSidebar = ({ initialUser }: DriverNavigationSidebarProps) 
         // { href: '/driver/ride-bookings', icon: ListOrdered, label: 'Ride Bookings' },
     ]},
     { value: "profile-account", triggerLabel: "Profile & Account", triggerIcon: UserCog, items: [
-        { href: '/driver/profile-settings/complete-account', icon: UserCog, label: 'Complete Account' },
-        { href: '/driver/profile-settings/edit-profile', icon: UserCog, label: 'Edit Profile' },
+        { href: '/profile-settings/complete-account', icon: UserCog, label: 'Complete Account' },
+        { href: '/profile-settings/edit-profile', icon: UserCog, label: 'Edit Profile' },
         { href: '/profile-settings/upload-documents', icon: FileUp, label: 'Upload Documents' },
     ]},
     { value: "general", triggerLabel: "General", triggerIcon: Inbox, items: [
         { href: '/driver/earnings', icon: DollarSign, label: 'Earnings' },
         { href: '/driver/inbox', icon: Inbox, label: 'Inbox' },
-        { href: '/driver/ride-history', icon: History, label: 'Ride History' },
+        { href: '/ride-history', icon: History, label: 'Ride History' },
     ]},
     { value: "help-settings", triggerLabel: "Help & Settings", triggerIcon: Settings, items: [
         { href: '/profile-settings/settings', icon: Settings, label: 'Settings' },
